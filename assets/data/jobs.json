@@ -1,0 +1,82 @@
+[
+  {
+    "id": "0",
+    "title": "Restaurant Server",
+    "price": 60000,
+    "company": "Mug&Bean",
+    "category": "Hospitality",
+    "description": "Assist customers with orders and serve food efficiently. Maintain cleanliness in the dining area and provide friendly service."
+  },
+  {
+    "id": "1",
+    "title": "Barista",
+    "price": 55000,
+    "company": "Cafe Bliss",
+    "category": "Hospitality",
+    "description": "Prepare and serve coffee and beverages. Ensure cleanliness of work area and provide excellent customer experience."
+  },
+  {
+    "id": "2",
+    "title": "Software Intern",
+    "price": 80000,
+    "company": "TechHub",
+    "category": "IT",
+    "description": "Work alongside senior developers to build, test, and debug applications. Gain hands-on experience in real-world software projects."
+  },
+  {
+    "id": "3",
+    "title": "Junior Web Developer",
+    "price": 95000,
+    "company": "CodeWorks",
+    "category": "IT",
+    "description": "Assist in building responsive websites, fixing bugs, and contributing to frontend and backend tasks."
+  },
+  {
+    "id": "4",
+    "title": "Cashier",
+    "price": 50000,
+    "company": "Shoprite",
+    "category": "Retail",
+    "description": "Handle customer payments, operate POS systems, and maintain accurate cash records. Provide friendly and efficient checkout service."
+  },
+  {
+    "id": "5",
+    "title": "Store Assistant",
+    "price": 48000,
+    "company": "Pick n Pay",
+    "category": "Retail",
+    "description": "Assist customers, restock shelves, and maintain store cleanliness and organization."
+  },
+  {
+    "id": "6",
+    "title": "Delivery Rider",
+    "price": 45000,
+    "company": "Mr D Food",
+    "category": "Logistics",
+    "description": "Deliver customer orders quickly and safely. Ensure excellent customer service and timely handling of deliveries."
+  },
+  {
+    "id": "7",
+    "title": "Warehouse Assistant",
+    "price": 47000,
+    "company": "Zambia Cargo Ltd",
+    "category": "Logistics",
+    "description": "Help manage stock, assist in packing, and support logistics staff in daily warehouse operations."
+  },
+  {
+    "id": "8",
+    "title": "Tutor",
+    "price": 70000,
+    "company": "Campus Tutors",
+    "category": "Education",
+    "description": "Provide tutoring in mathematics and science for high school students. Prepare lesson plans and track student progress."
+  },
+  {
+    "id": "9",
+    "title": "Teaching Assistant",
+    "price": 68000,
+    "company": "Greenfield Academy",
+    "category": "Education",
+    "description": "Support teachers in managing classrooms, preparing materials, and assisting students with learning tasks."
+  }
+]

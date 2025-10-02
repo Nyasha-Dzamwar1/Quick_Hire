@@ -1,0 +1,23 @@
+[
+  {
+    "id": "user_01",
+    "name": "Alice Moyo",
+    "dob": "1999-05-20",
+    "gender": "female",
+    "phone": "0771234567",
+    "location": "Lilongwe",
+    "experience": "2 years mowing and caring gardens. Carrying and overseeing construction project",
+    "password": "password123"
+  },
+
+  {
+    "id": "user_02",
+    "name": "Dave Mwanza",
+    "dob": "2000-03-15",
+    "gender": "male",
+    "phone": "0772345678",
+    "location": "Lilongwe",
+    "experience": "3 years in farming maize, tobacco and other crops",
+    "password": "alice456"
+  }
+]

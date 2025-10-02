@@ -1,0 +1,20 @@
+[
+  {
+    "id": "poster_01",
+    "name": "John Doe",
+    "dob": "1985-11-12",
+    "gender": "male",
+    "phone": "0777654321",
+    "location": "Harare",
+    "password": "john"
+  },
+  {
+    "id": "poster_02",
+    "name": "Mary Chirwa",
+    "dob": "1990-06-22",
+    "gender": "female",
+    "phone": "0778765432",
+    "location": "Mutare",
+    "password": "mary"
+  }
+]
