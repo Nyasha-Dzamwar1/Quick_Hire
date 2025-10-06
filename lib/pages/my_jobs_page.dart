@@ -1,201 +1,353 @@
 import 'package:flutter/material.dart';
-//import 'package:quick_hire/global_variables.dart';
+import 'package:provider/provider.dart';
+import 'package:quick_hire/pages/poster_notifications_page.dart';
+import 'package:quick_hire/pages/poster_profile_page.dart';
+import 'package:quick_hire/repositories/app_repository.dart';
 
 class MyJobsPage extends StatelessWidget {
   const MyJobsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final appRepo = Provider.of<AppRepository>(context);
+
     return Scaffold(
-      // App Bar
       appBar: AppBar(
         toolbarHeight: 130,
         title: Text('My Jobs', style: Theme.of(context).textTheme.titleLarge),
         actions: [
           IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.notifications),
-            iconSize: 50,
-            padding: EdgeInsets.all(10),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PosterNotificationsPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.notifications),
+            iconSize: 30,
           ),
           IconButton(
-            onPressed: () {},
-            icon: Icon(Icons.person),
-            iconSize: 50,
-            padding: EdgeInsets.all(10),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PosterProfilePage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.person),
+            iconSize: 30,
           ),
         ],
       ),
 
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: 1,
-        itemBuilder: (context, index) {
-          //final JobCards = jobCards;
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: appRepo.posterJobsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('No jobs posted yet.'));
+          }
 
-          return Container(
-            //height: 300,
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+          final jobs = snapshot.data!;
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: jobs.length,
+            itemBuilder: (context, index) => JobCard(jobData: jobs[index]),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class JobCard extends StatelessWidget {
+  final Map<String, dynamic> jobData;
+  const JobCard({super.key, required this.jobData});
+
+  Color _statusBg(String status) {
+    switch (status) {
+      case 'accepted':
+        return Colors.green.shade100;
+      case 'denied':
+        return Colors.red.shade100;
+      default:
+        return Colors.yellow.shade100;
+    }
+  }
+
+  Color _statusFg(String status) {
+    switch (status) {
+      case 'accepted':
+        return Colors.green.shade800;
+      case 'denied':
+        return Colors.red.shade800;
+      default:
+        return Colors.orange.shade800;
+    }
+  }
+
+  void _showDeleteConfirmation(BuildContext context, AppRepository appRepo) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Job'),
+          content: const Text(
+            'Are you sure you want to delete this job? This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Gardening Help',
+            TextButton(
+              onPressed: () {
+                appRepo.deleteJob(jobData['id'] ?? '');
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Job deleted successfully')),
+                );
+              },
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appRepo = Provider.of<AppRepository>(context, listen: false);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    jobData['title'] ?? 'No Title',
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1a4d8f),
                     ),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _showDeleteConfirmation(context, appRepo),
+                  tooltip: 'Delete Job',
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              jobData['description'] ?? 'No description',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'MKW ${jobData['price'] ?? 0}',
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color.fromRGBO(255, 193, 7, 1),
+              ),
+            ),
+            const SizedBox(height: 20),
 
-                  SizedBox(height: 8),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: appRepo.getJobApplicants(jobData['id'] ?? ''),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: CircularProgressIndicator(),
+                  );
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Text('No applicants yet.');
+                }
 
-                  Text(
-                    'Description',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[700],
-                      height: 1.4,
+                final applicants = snapshot.data!;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Applicants',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-
-                  SizedBox(height: 16),
-
-                  Text(
-                    'MKW 6000',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1a4d8f),
-                    ),
-                  ),
-
-                  SizedBox(height: 8),
-
-                  Text(
-                    'Mug&Bean, Limbe',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Color(0xFFf59e0b),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-
-                  SizedBox(height: 20),
-
-                  //applicant section
-                  Padding(
-                    padding: const EdgeInsets.all(10.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Applicants',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                    const SizedBox(height: 8),
+                    ...applicants.map((applicant) {
+                      final status = applicant['status'] ?? 'pending';
+                      final isPending = status == 'pending';
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: _statusBg(status),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _statusFg(status).withOpacity(0.3),
+                            width: 1,
                           ),
                         ),
-
-                        SizedBox(height: 6),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Nyasha C.',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            Text(
-                              '0993827682',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Status : Pending',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFd1fae5),
-                                      foregroundColor: const Color(0xFF065f46),
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 10,
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        applicant['name'] ?? 'Applicant',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 15,
+                                        ),
                                       ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        applicant['phone'] ?? 'N/A',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.grey.shade700,
+                                        ),
                                       ),
-                                    ),
-                                    onPressed: () {},
-                                    child: Text('Accept'),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFFfef3c7),
-                                      foregroundColor: const Color(0xFF92400e),
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 20,
-                                        vertical: 10,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {},
-                                    child: Text('Deny'),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _statusFg(status).withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    status.toUpperCase(),
+                                    style: TextStyle(
+                                      color: _statusFg(status),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+                                if (isPending) ...[
+                                  SizedBox(
+                                    height: 32,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () =>
+                                          appRepo.updateApplicationStatus(
+                                            applicant['applicationId'],
+                                            'accepted',
+                                          ),
+                                      icon: const Icon(Icons.check, size: 16),
+                                      label: const Text('Accept'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.green.shade600,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  SizedBox(
+                                    height: 32,
+                                    child: ElevatedButton.icon(
+                                      onPressed: () =>
+                                          appRepo.updateApplicationStatus(
+                                            applicant['applicationId'],
+                                            'denied',
+                                          ),
+                                      icon: const Icon(Icons.close, size: 16),
+                                      label: const Text('Deny'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red.shade600,
+                                        foregroundColor: Colors.white,
+                                        elevation: 0,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        textStyle: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                      );
+                    }).toList(),
+                  ],
+                );
+              },
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:quick_hire/navigation/poster_navigation.dart';
 import 'package:quick_hire/navigation/seeker_navigation.dart';
+import 'package:quick_hire/pages/poster_login_page.dart';
+import 'package:quick_hire/pages/seeker_login_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -98,14 +100,14 @@ class _SplashPageState extends State<SplashPage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const SeekerNavigation(),
+                                builder: (context) => const SeekerLoginPage(),
                               ),
                             );
                           } else if (selectedOption == 'job_poster') {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const PosterNavigation(),
+                                builder: (context) => const PosterLoginPage(),
                               ),
                             );
                           }

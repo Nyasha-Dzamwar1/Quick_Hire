@@ -1,6 +1,7 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:quick_hire/navigation/seeker_navigation.dart';
 
 class SeekerLoginPage extends StatefulWidget {
   const SeekerLoginPage({super.key});
@@ -10,32 +11,73 @@ class SeekerLoginPage extends StatefulWidget {
 }
 
 class _SeekerLoginPageState extends State<SeekerLoginPage> {
-  // Load JSON from assets
-  Future<List<Map<String, dynamic>>> loadJson(String path) async {
-    final data = await DefaultAssetBundle.of(context).loadString(path);
-    return List<Map<String, dynamic>>.from(jsonDecode(data));
-  }
-
-  Future<bool> loginJobSeeker(String name, String password) async {
-    final jobSeekers = await loadJson('assets/data/users_jobseekers.json');
-    final user = jobSeekers.firstWhere(
-      (u) => u['name'] == name && u['password'] == password,
-      orElse: () => {},
-    );
-
-    if (user.isNotEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('loggedInUser', jsonEncode(user));
-      await prefs.setString('userType', 'jobseeker');
-      return true; // login successful
-    } else {
-      return false; // login failed
-    }
-  }
-
   final TextEditingController nameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  Future<void> loginSeeker(String name, String password) async {
+    setState(() => _isLoading = true);
+
+    final queryAll = await FirebaseFirestore.instance
+        .collection('seekers')
+        .get();
+    for (var doc in queryAll.docs) {
+      print(doc.data()['name']);
+    }
+
+    try {
+      // Get user by name
+      final query = await FirebaseFirestore.instance
+          .collection('seekers')
+          .where('name', isEqualTo: name)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        throw Exception('No user found with that name');
+      }
+
+      final userData = query.docs.first.data();
+      final email = userData['email'] as String?;
+
+      if (email == null || email.isEmpty) {
+        throw Exception('Email not found for this user');
+      }
+
+      // Sign in with Firebase Auth
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Login successful!')));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const SeekerNavigation()),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Invalid credentials')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    nameController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -161,9 +203,21 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
               SizedBox(
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Handle sign in
-                  },
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          final name = nameController.text.trim();
+                          final password = passwordController.text.trim();
+                          if (name.isEmpty || password.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please fill in all fields'),
+                              ),
+                            );
+                            return;
+                          }
+                          loginSeeker(name, password);
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
                     foregroundColor: Colors.white,
@@ -210,12 +264,5 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    nameController.dispose();
-    passwordController.dispose();
-    super.dispose();
   }
 }

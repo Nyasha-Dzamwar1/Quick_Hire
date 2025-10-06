@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Job {
   final String id;
   final String title;
@@ -17,27 +19,32 @@ class Job {
     required this.description,
   });
 
-  factory Job.fromJson(Map<String, dynamic> json) {
+  //  Convert Firestore document into Job object
+  factory Job.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return Job(
-      id: json['id'],
-      title: json['title'],
-      price: json['price'],
-      imageUrl: json['imageUrl'],
-      company: json['company'],
-      category: json['category'],
-      description: json['description'],
+      id: doc.id,
+      title: data['title'] ?? '',
+      description: data['description'] ?? '',
+      price: (data['price'] is int)
+          ? data['price']
+          : int.tryParse(data['price'].toString()) ?? 0,
+      company: data['company'] ?? '',
+      category: data['category'] ?? '',
+      imageUrl: data['imageUrl'] ?? '',
     );
   }
 
-  Map<String, dynamic> toJson() {
+  // Convert local Job object into Firestore-friendly Map
+  Map<String, dynamic> toFirestore() {
     return {
-      'id': id,
       'title': title,
+      'description': description,
       'price': price,
-      'imageUrl': imageUrl,
       'company': company,
       'category': category,
-      'description': description,
+      'imageUrl': imageUrl,
+      'createdAt': FieldValue.serverTimestamp(),
     };
   }
 }

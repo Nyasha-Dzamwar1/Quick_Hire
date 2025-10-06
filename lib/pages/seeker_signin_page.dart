@@ -1,18 +1,105 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:quick_hire/navigation/seeker_navigation.dart';
+import 'package:quick_hire/repositories/app_repository.dart';
 
-class PosterSigninPage extends StatefulWidget {
-  const PosterSigninPage({Key? key}) : super(key: key);
+class SeekerSigninPage extends StatefulWidget {
+  const SeekerSigninPage({Key? key}) : super(key: key);
 
   @override
-  State<PosterSigninPage> createState() => _PosterSigninPageState();
+  State<SeekerSigninPage> createState() => _SeekerSigninPageState();
 }
 
-class _PosterSigninPageState extends State<PosterSigninPage> {
+class _SeekerSigninPageState extends State<SeekerSigninPage> {
   String selectedGender = 'Male';
   final TextEditingController dateController = TextEditingController();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController locationController = TextEditingController();
+  final TextEditingController experienceController = TextEditingController();
+  bool isLoading = false;
+
+  Future<void> _completeSetup() async {
+    setState(() => isLoading = true);
+
+    final name = nameController.text.trim();
+    final password = passwordController.text.trim();
+    final phone = phoneController.text.trim();
+    final location = locationController.text.trim();
+    final experience = experienceController.text.trim();
+    final dob = dateController.text.trim();
+    final gender = selectedGender;
+
+    if (name.isEmpty || password.isEmpty || phone.isEmpty || location.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      setState(() => isLoading = false);
+      return;
+    }
+
+    try {
+      // Generate pseudo-email from name
+      final email = '${name.replaceAll(' ', '').toLowerCase()}@quickhire.com';
+
+      // Step 1: Create Firebase Auth user
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Step 2: Save profile in Firestore
+      await FirebaseFirestore.instance
+          .collection('seekers')
+          .doc(credential.user!.uid)
+          .set({
+            'name': name,
+            'email': email, // store pseudo-email
+            'gender': gender,
+            'date_of_birth': dob,
+            'phone': phone,
+            'location': location,
+            'experience': experience,
+            'created_at': FieldValue.serverTimestamp(),
+          });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile setup complete!')));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const SeekerNavigation()),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Error creating account')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Something went wrong: $e')));
+    } finally {
+      setState(() => isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    dateController.dispose();
+    nameController.dispose();
+    passwordController.dispose();
+    phoneController.dispose();
+    locationController.dispose();
+    experienceController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final repo = Provider.of<AppRepository>(context, listen: false);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -44,180 +131,40 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
               ),
               const SizedBox(height: 30),
 
-              // Name
-              const Text(
-                'Full Name',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
-              _buildTextField(hint: 'Your name'),
-
+              _buildTextField(controller: nameController, hint: 'Full Name'),
               const SizedBox(height: 14),
-
-              // Password
-              const Text(
-                'Password',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
-              _buildTextField(hint: 'password'),
-
-              const SizedBox(height: 14),
-
-              // Date of Birth
-              const Text(
-                'Date of Birth',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: dateController,
-                readOnly: true,
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: DateTime.now(),
-                    firstDate: DateTime(1950),
-                    lastDate: DateTime.now(),
-                  );
-                  if (date != null) {
-                    dateController.text =
-                        '${date.day}/${date.month}/${date.year}';
-                  }
-                },
-                decoration: InputDecoration(
-                  hintText: 'Select date',
-                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 12,
-                  ),
-                  suffixIcon: const Icon(
-                    Icons.calendar_today,
-                    size: 20,
-                    color: Color(0xFF666666),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // Gender
-              const Text(
-                'Gender',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Male'),
-                      value: 'Male',
-                      groupValue: selectedGender,
-                      onChanged: (value) =>
-                          setState(() => selectedGender = value!),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      activeColor: Color.fromRGBO(0, 45, 114, 1.0),
-                    ),
-                  ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Female'),
-                      value: 'Female',
-                      groupValue: selectedGender,
-                      onChanged: (value) =>
-                          setState(() => selectedGender = value!),
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      activeColor: const Color.fromRGBO(0, 45, 114, 1.0),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-
-              // Phone Number
-              const Text(
-                'Phone Number',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
               _buildTextField(
-                hint: 'e.g., 123456789',
+                controller: passwordController,
+                hint: 'Password',
+                obscureText: true,
+              ),
+              const SizedBox(height: 14),
+              _buildDateField(),
+              const SizedBox(height: 14),
+              _buildGenderField(),
+              const SizedBox(height: 14),
+              _buildTextField(
+                controller: phoneController,
+                hint: 'Phone Number',
                 keyboardType: TextInputType.phone,
               ),
-
               const SizedBox(height: 14),
-
-              // Location
-              const Text(
-                'Location',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
-              _buildTextField(hint: 'Your location'),
-
+              _buildTextField(controller: locationController, hint: 'Location'),
               const SizedBox(height: 14),
-
-              // Work Experience
-              const Text(
-                'Work Experience',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
+              _buildTextField(
+                controller: experienceController,
+                hint: 'Work Experience',
+                maxLines: 3,
               ),
-              const SizedBox(height: 6),
-              _buildTextField(hint: 'Describe your experience', maxLines: 3),
-
               const SizedBox(height: 30),
 
-              // Complete Setup Button
               SizedBox(
                 height: 56,
                 child: Center(
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: isLoading ? null : () => _completeSetup(),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color.fromRGBO(0, 45, 114, 1.0),
+                      backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
                       foregroundColor: Colors.white,
                       disabledBackgroundColor: Colors.grey[300],
                       elevation: 0,
@@ -225,13 +172,15 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(
-                      'Complete Setup',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: isLoading
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : const Text(
+                            'Complete Setup',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -243,13 +192,17 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
   }
 
   Widget _buildTextField({
+    required TextEditingController controller,
     String? hint,
     int maxLines = 1,
     TextInputType? keyboardType,
+    bool obscureText = false,
   }) {
     return TextField(
+      controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      obscureText: obscureText,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         hintText: hint,
@@ -272,9 +225,73 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
     );
   }
 
-  @override
-  void dispose() {
-    dateController.dispose();
-    super.dispose();
+  Widget _buildDateField() {
+    return TextField(
+      controller: dateController,
+      readOnly: true,
+      onTap: () async {
+        final date = await showDatePicker(
+          context: context,
+          initialDate: DateTime.now(),
+          firstDate: DateTime(1950),
+          lastDate: DateTime.now(),
+        );
+        if (date != null) {
+          dateController.text = '${date.day}/${date.month}/${date.year}';
+        }
+      },
+      decoration: InputDecoration(
+        hintText: 'Date of Birth',
+        hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+        filled: true,
+        fillColor: Colors.grey[50],
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(6),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
+        suffixIcon: const Icon(
+          Icons.calendar_today,
+          size: 20,
+          color: Color(0xFF666666),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderField() {
+    return Row(
+      children: [
+        Expanded(
+          child: RadioListTile<String>(
+            title: const Text('Male'),
+            value: 'Male',
+            groupValue: selectedGender,
+            onChanged: (value) => setState(() => selectedGender = value!),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            activeColor: const Color.fromRGBO(0, 45, 114, 1.0),
+          ),
+        ),
+        Expanded(
+          child: RadioListTile<String>(
+            title: const Text('Female'),
+            value: 'Female',
+            groupValue: selectedGender,
+            onChanged: (value) => setState(() => selectedGender = value!),
+            contentPadding: EdgeInsets.zero,
+            dense: true,
+            activeColor: const Color.fromRGBO(0, 45, 114, 1.0),
+          ),
+        ),
+      ],
+    );
   }
 }
