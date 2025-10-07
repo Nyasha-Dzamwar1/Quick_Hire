@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:quick_hire/pages/job_seeker_home_page.dart';
-import 'package:quick_hire/pages/splash_page.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:quick_hire/navigation/seeker_navigation.dart';
+import 'package:quick_hire/pages/leading_page.dart';
+import 'package:quick_hire/pages/my_jobs_page.dart';
+import 'package:quick_hire/pages/poster_login_page.dart';
+import 'package:quick_hire/pages/seeker_login_page.dart';
 import 'package:quick_hire/repositories/app_repository.dart';
-import 'services/local_storage_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final storage = LocalStorageService();
-  final repo = AppRepository(storage: storage);
-  await repo.init();
+  await Firebase.initializeApp(); // Initialize Firebase
 
   runApp(
-    ChangeNotifierProvider<AppRepository>.value(value: repo, child: MyApp()),
+    ChangeNotifierProvider(
+      create: (_) => AppRepository(), // Firebase repo
+      child: const MyApp(),
+    ),
   );
 }
 
@@ -21,55 +25,41 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final repo = Provider.of<AppRepository>(context, listen: false);
-
     return MaterialApp(
-      home: repo.currentUser == null ? SplashPage() : JobSeekerHomePage(),
+      home: const LeadingPage(),
       theme: ThemeData(
         useMaterial3: true,
-
         fontFamily: 'Lato',
-
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Color.fromRGBO(0, 45, 114, 1.0),
-          primary: Color.fromRGBO(0, 45, 114, 1.0),
-          secondary: Color.fromRGBO(255, 193, 7, 1.0),
+          seedColor: const Color.fromRGBO(0, 45, 114, 1),
+          primary: const Color.fromRGBO(0, 45, 114, 1),
+          secondary: const Color.fromRGBO(255, 193, 7, 1),
         ),
-
         scaffoldBackgroundColor: Colors.white,
-
-        appBarTheme: AppBarTheme(
+        appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black,
           elevation: 0,
         ),
-
-        bottomNavigationBarTheme: BottomNavigationBarThemeData(
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.white,
           selectedItemColor: Color.fromRGBO(0, 45, 114, 1),
           unselectedItemColor: Colors.grey,
         ),
-
-        //textTheme
-        textTheme: TextTheme(
+        textTheme: const TextTheme(
           titleLarge: TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.bold,
             color: Color.fromRGBO(0, 45, 114, 1),
           ),
-
           titleMedium: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
-
           bodyLarge: TextStyle(fontSize: 25),
-
           bodyMedium: TextStyle(fontSize: 14),
-
           bodySmall: TextStyle(fontSize: 12),
-
           labelLarge: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,

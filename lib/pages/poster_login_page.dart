@@ -1,6 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:quick_hire/navigation/poster_navigation.dart';
+import 'package:quick_hire/pages/poster_signin_Page.dart';
 
 class PosterLoginPage extends StatefulWidget {
   const PosterLoginPage({super.key});
@@ -13,34 +15,57 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
-  // Load JSON from assets
-  Future<List<Map<String, dynamic>>> loadJson(String path) async {
-    final data = await DefaultAssetBundle.of(context).loadString(path);
-    return List<Map<String, dynamic>>.from(jsonDecode(data));
-  }
+  // Login function using Firebase Auth (name + password)
+  Future<void> loginPoster(String name, String password) async {
+    setState(() => _isLoading = true);
 
-  // Login function
-  Future<bool> loginJobSeeker(String name, String password) async {
     try {
-      final jobSeekers = await loadJson('assets/data/users_jobseekers.json');
+      // Get user by name
+      final query = await FirebaseFirestore.instance
+          .collection('posters')
+          .where('name', isEqualTo: name)
+          .limit(1)
+          .get();
 
-      final user = jobSeekers.firstWhere(
-        (u) => u['name'] == name && u['password'] == password,
-        orElse: () => {},
+      if (query.docs.isEmpty) {
+        throw Exception('No user found with that name');
+      }
+
+      final userData = query.docs.first.data();
+      final email = userData['email'] as String?;
+
+      if (email == null || email.isEmpty) {
+        throw Exception('Email not found for this user');
+      }
+
+      // Sign in with Firebase Auth
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
       );
 
-      if (user.isNotEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('loggedInUser', jsonEncode(user));
-        await prefs.setString('userType', 'jobseeker');
-        return true; // login successful
-      } else {
-        return false; // login failed
-      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Login successful!')));
+
+      //Navigate to Dashboard
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const PosterNavigation()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Invalid credentials')),
+      );
     } catch (e) {
-      print('Error logging in: $e');
-      return false;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -74,7 +99,7 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Sign in to continue',
+                'Log in to continue',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -84,7 +109,7 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
               ),
               const SizedBox(height: 50),
 
-              // Phone
+              // Name field
               const Text(
                 'Name',
                 style: TextStyle(
@@ -96,10 +121,10 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
               const SizedBox(height: 6),
               TextField(
                 controller: nameController,
-                keyboardType: TextInputType.phone,
+                keyboardType: TextInputType.name,
                 style: const TextStyle(fontSize: 15),
                 decoration: InputDecoration(
-                  hintText: 'John Doe',
+                  hintText: 'Enter your name',
                   hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -174,24 +199,23 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
               SizedBox(
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () async {
-                    final name = nameController.text.trim();
-                    final password = passwordController.text.trim();
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          final name = nameController.text.trim();
+                          final password = passwordController.text.trim();
 
-                    final success = await loginJobSeeker(name, password);
+                          if (name.isEmpty || password.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please fill in all fields.'),
+                              ),
+                            );
+                            return;
+                          }
 
-                    if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Login successful!')),
-                      );
-
-                      // Navigate to home page
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Invalid credentials')),
-                      );
-                    }
-                  },
+                          loginPoster(name, password);
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
                     foregroundColor: Colors.white,
@@ -200,10 +224,15 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Sign In',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Log In',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
 
@@ -219,7 +248,13 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to sign up page
+                      // Navigate to Sign Up page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PosterSigninPage(),
+                        ),
+                      );
                     },
                     child: const Text(
                       'Sign Up',

@@ -1,17 +1,64 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:quick_hire/repositories/app_repository.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quick_hire/pages/my_applications_page.dart';
+import 'package:quick_hire/pages/seeker_help_page.dart';
+import 'package:quick_hire/pages/seeker_notifications_page.dart';
+import 'package:quick_hire/pages/splash_page.dart';
 
-import 'my_applications_page.dart';
-
-class SeekerProfilePage extends StatelessWidget {
+class SeekerProfilePage extends StatefulWidget {
   const SeekerProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final repo = context.watch<AppRepository>();
-    final user = repo.currentUser; // 👈 active logged-in seeker
+  State<SeekerProfilePage> createState() => _SeekerProfilePageState();
+}
 
+class _SeekerProfilePageState extends State<SeekerProfilePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  Map<String, dynamic>? userData;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserProfile();
+  }
+
+  Future<void> _loadUserProfile() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      final doc = await _firestore.collection('seekers').doc(user.uid).get();
+
+      if (doc.exists) {
+        setState(() {
+          userData = doc.data();
+          isLoading = false;
+        });
+      } else {
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching user data: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    await _auth.signOut();
+    if (context.mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SplashPage()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
       appBar: AppBar(
@@ -28,158 +75,180 @@ class SeekerProfilePage extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
-            color: Colors.white,
-            icon: const Icon(Icons.notifications_outlined),
-            iconSize: 28,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const SeekerNotificationsPage(),
+                ),
+              );
+            },
+            icon: const Icon(Icons.notifications, color: Colors.white),
+            iconSize: 30,
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        child: ListView(
-          children: [
-            // Avatar
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [
-                    Color.fromRGBO(0, 45, 114, 1.0),
-                    Color.fromRGBO(0, 70, 150, 1.0),
-                  ],
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          : Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(30),
                 ),
               ),
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.grey[200],
-                child: const Icon(Icons.person, size: 50, color: Colors.grey),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Name
-            Center(
-              child: Text(
-                user?.name ?? "Unknown User",
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Profile details
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _buildInfoRow(
-                    Icons.person_outline,
-                    'Gender',
-                    user?.gender ?? "-",
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(
-                    Icons.cake_outlined,
-                    'Date of Birth',
-                    user?.dob ?? "-",
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(
-                    Icons.badge_outlined,
-                    'Phone Number',
-                    user?.phone ?? "-",
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInfoRow(
-                    Icons.location_on_outlined,
-                    'Location',
-                    user?.location ?? "-",
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Menu
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.description_outlined,
-                    title: 'My Applications',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const MyApplicationsPage(),
+              child: userData == null
+                  ? const Center(
+                      child: Text(
+                        'No profile data found.',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        // Avatar
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                Color.fromRGBO(0, 45, 114, 1.0),
+                                Color.fromRGBO(0, 70, 150, 1.0),
+                              ],
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.grey[200],
+                            child: const Icon(
+                              Icons.person,
+                              size: 50,
+                              color: Colors.grey,
+                            ),
+                          ),
                         ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, indent: 60),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.help_outline,
-                    title: 'Help',
-                    onTap: () {
-                      // navigate to help later
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("Help tapped")),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, indent: 60),
-                  _buildMenuItem(
-                    context,
-                    icon: Icons.logout,
-                    title: 'Log out',
-                    onTap: () {
-                      _showLogoutDialog(context, repo);
-                    },
-                    showArrow: false,
-                    isDestructive: true,
-                  ),
-                ],
-              ),
+                        const SizedBox(height: 16),
+
+                        // Name
+                        Center(
+                          child: Text(
+                            userData?['name'] ?? "Unknown User",
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Profile details
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              _buildInfoRow(
+                                Icons.person_outline,
+                                'Gender',
+                                userData?['gender'] ?? '-',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoRow(
+                                Icons.cake_outlined,
+                                'Date of Birth',
+                                userData?['date_of_birth'] ?? '-',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoRow(
+                                Icons.badge_outlined,
+                                'Phone Number',
+                                userData?['phone'] ?? '-',
+                              ),
+                              const SizedBox(height: 16),
+                              _buildInfoRow(
+                                Icons.location_on_outlined,
+                                'Location',
+                                userData?['location'] ?? '-',
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Menu
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.04),
+                                blurRadius: 10,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              _buildMenuItem(
+                                context,
+                                icon: Icons.description_outlined,
+                                title: 'My Applications',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const MyApplicationsPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const Divider(height: 1, indent: 60),
+                              _buildMenuItem(
+                                context,
+                                icon: Icons.help_outline,
+                                title: 'Help',
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const SeekerHelpPage(),
+                                    ),
+                                  );
+                                },
+                              ),
+                              const Divider(height: 1, indent: 60),
+                              _buildMenuItem(
+                                context,
+                                icon: Icons.logout,
+                                title: 'Log out',
+                                onTap: () => _showLogoutDialog(context),
+                                showArrow: false,
+                                isDestructive: true,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -277,7 +346,7 @@ class SeekerProfilePage extends StatelessWidget {
     );
   }
 
-  void _showLogoutDialog(BuildContext context, AppRepository repo) {
+  void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -296,10 +365,9 @@ class SeekerProfilePage extends StatelessWidget {
               child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
             ),
             TextButton(
-              onPressed: () async {
-                await repo.logout(); // call AppRepository
+              onPressed: () {
                 Navigator.of(context).pop();
-                Navigator.of(context).pushReplacementNamed("/login");
+                _logout(context);
               },
               child: Text('Log Out', style: TextStyle(color: Colors.red[700])),
             ),

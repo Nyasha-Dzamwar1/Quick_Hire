@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_multi_formatter/flutter_multi_formatter.dart';
+import 'package:quick_hire/pages/job_poster_home_page.dart';
 
 class JobPostingPage extends StatefulWidget {
   const JobPostingPage({Key? key}) : super(key: key);
@@ -9,23 +14,31 @@ class JobPostingPage extends StatefulWidget {
 
 class _JobPostingPageState extends State<JobPostingPage> {
   String? selectedCategory;
-  String? selectedLocation;
+
+  // Controllers
+  final _titleController = TextEditingController();
+  final _payController = TextEditingController();
+  final _companyController = TextEditingController();
+  final _descriptionController = TextEditingController();
 
   final List<String> categories = [
-    'Gardener',
-    'Plumber',
-    'Electrician',
-    'Carpenter',
-    'Painter',
-    'Cleaner',
+    'Agriculture',
+    'Hospitality',
+    'Gardening and Landscaping',
+    'Construction & Labor',
+    'Retail & Sales',
+    'Cleaning & Maintenance',
+    'Delivery & Transport',
   ];
 
-  final List<String> locations = [
-    'Ndirande, Blantyre',
-    'Limbe, Blantyre',
-    'Chilomoni, Blantyre',
-    'City Centre, Blantyre',
-  ];
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _payController.dispose();
+    _companyController.dispose();
+    _descriptionController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,8 +73,10 @@ class _JobPostingPageState extends State<JobPostingPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                _buildTextField(hint: 'Job title'),
-
+                _buildTextField(
+                  hint: 'Job title',
+                  controller: _titleController,
+                ),
                 const SizedBox(height: 14),
 
                 // Job Category
@@ -97,22 +112,13 @@ class _JobPostingPageState extends State<JobPostingPage> {
                 _buildTextField(
                   hint: 'e.g., 50,000',
                   keyboardType: TextInputType.number,
+                  controller: _payController,
+                  // inputFormatters: [
+                  //   MoneyInputFormatter(
+                  //     thousandSeparator: ThousandSeparator.Comma,
+                  //   ),
+                  // ],
                 ),
-
-                const SizedBox(height: 14),
-
-                // Location
-                const Text(
-                  'Location',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color.fromRGBO(30, 58, 138, 1),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                _buildTextField(hint: 'Location'),
-
                 const SizedBox(height: 14),
 
                 // Company Name
@@ -125,8 +131,10 @@ class _JobPostingPageState extends State<JobPostingPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                _buildTextField(hint: 'Company name'),
-
+                _buildTextField(
+                  hint: 'Company name',
+                  controller: _companyController,
+                ),
                 const SizedBox(height: 14),
 
                 // Job Description
@@ -139,31 +147,33 @@ class _JobPostingPageState extends State<JobPostingPage> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                _buildTextField(hint: 'Write something...', maxLines: 4),
-
+                _buildTextField(
+                  hint: 'Write something...',
+                  maxLines: 4,
+                  controller: _descriptionController,
+                ),
                 const SizedBox(height: 20),
 
                 // Post Job Button
                 SizedBox(
                   height: 56,
-                  child: Center(
-                    child: ElevatedButton(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Color.fromRGBO(0, 45, 114, 1.0),
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: Colors.grey[300],
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _postJob,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.grey[300],
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Text(
-                        'Post a Job',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    ),
+                    child: const Text(
+                      'Post a Job',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -176,16 +186,81 @@ class _JobPostingPageState extends State<JobPostingPage> {
     );
   }
 
-  //widgets
+  // Firebase integration
+  Future<void> _postJob() async {
+    if (_titleController.text.isEmpty ||
+        _payController.text.isEmpty ||
+        _companyController.text.isEmpty ||
+        _descriptionController.text.isEmpty ||
+        selectedCategory == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all required fields")),
+      );
+      return;
+    }
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You must be logged in to post a job")),
+      );
+      return;
+    }
+
+    try {
+      final jobData = {
+        'title': _titleController.text,
+        'price':
+            int.tryParse(
+              _payController.text.replaceAll(RegExp(r'[^0-9]'), ''),
+            ) ??
+            0,
+        'company': _companyController.text,
+        'description': _descriptionController.text,
+        'category': selectedCategory,
+        'posterId': user.uid,
+        'createdAt': FieldValue.serverTimestamp(),
+        'imageUrl': 'assets/images/placeholder.jpg', // Placeholder image
+      };
+
+      await FirebaseFirestore.instance.collection('jobs').add(jobData);
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Job posted successfully!")));
+
+      // Clear fields
+      _titleController.clear();
+      _payController.clear();
+      _companyController.clear();
+      _descriptionController.clear();
+      setState(() => selectedCategory = null);
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error posting job: $e")));
+    }
+
+    //navigation
+    Navigator.pop(
+      context,
+      MaterialPageRoute(builder: (context) => const JobPosterHomePage()),
+    );
+  }
+
+  // widgets
   Widget _buildTextField({
     String? hint,
     int maxLines = 1,
     TextInputType? keyboardType,
+    TextEditingController? controller,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextField(
+      controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         hintText: hint,
@@ -232,10 +307,12 @@ class _JobPostingPageState extends State<JobPostingPage> {
             ],
           ),
           isExpanded: true,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          items: items.map((String val) {
-            return DropdownMenuItem<String>(value: val, child: Text(val));
-          }).toList(),
+          items: items
+              .map(
+                (String val) =>
+                    DropdownMenuItem<String>(value: val, child: Text(val)),
+              )
+              .toList(),
           onChanged: onChanged,
         ),
       ),

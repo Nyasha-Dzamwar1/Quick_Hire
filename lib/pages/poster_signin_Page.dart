@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:quick_hire/navigation/poster_navigation.dart';
+import 'package:quick_hire/pages/poster_login_page.dart';
+import 'package:quick_hire/repositories/app_repository.dart';
 
 class PosterSigninPage extends StatefulWidget {
   const PosterSigninPage({Key? key}) : super(key: key);
@@ -10,6 +16,11 @@ class PosterSigninPage extends StatefulWidget {
 class _PosterSigninPageState extends State<PosterSigninPage> {
   String selectedGender = 'Male';
   final TextEditingController dateController = TextEditingController();
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController locationController = TextEditingController();
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +65,7 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              _buildTextField(hint: 'Your name'),
+              _buildTextField(hint: 'Your name', controller: nameController),
 
               const SizedBox(height: 14),
 
@@ -68,7 +79,11 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              _buildTextField(hint: 'password'),
+              _buildTextField(
+                hint: 'password',
+                controller: passwordController,
+                obscureText: true,
+              ),
 
               const SizedBox(height: 14),
 
@@ -178,6 +193,7 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
               _buildTextField(
                 hint: 'e.g., 123456789',
                 keyboardType: TextInputType.phone,
+                controller: phoneController,
               ),
 
               const SizedBox(height: 14),
@@ -192,7 +208,10 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              _buildTextField(hint: 'Your location'),
+              _buildTextField(
+                hint: 'Your location',
+                controller: locationController,
+              ),
 
               const SizedBox(height: 44),
 
@@ -201,7 +220,7 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                 height: 56,
                 child: Center(
                   child: ElevatedButton(
-                    onPressed: () {},
+                    onPressed: _registerPoster,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Color.fromRGBO(0, 45, 114, 1.0),
                       foregroundColor: Colors.white,
@@ -211,7 +230,7 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Complete Setup',
                       style: TextStyle(
                         fontSize: 18,
@@ -220,6 +239,38 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                     ),
                   ),
                 ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Already have an account? ',
+                    style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+                  ),
+
+                  GestureDetector(
+                    onTap: () {
+                      // Navigate to log in page
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PosterLoginPage(),
+                        ),
+                      );
+                    },
+                    child: const Text(
+                      'Log in',
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Color.fromRGBO(0, 45, 114, 1.0),
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -231,10 +282,14 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
   Widget _buildTextField({
     String? hint,
     int maxLines = 1,
+    bool obscureText = false,
     TextInputType? keyboardType,
+    TextEditingController? controller,
   }) {
     return TextField(
+      controller: controller,
       maxLines: maxLines,
+      obscureText: obscureText,
       keyboardType: keyboardType,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
@@ -258,9 +313,71 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
     );
   }
 
+  Future<void> _registerPoster() async {
+    setState(() => isLoading = true);
+
+    final name = nameController.text.trim();
+    final password = passwordController.text.trim();
+    final phone = phoneController.text.trim();
+    final location = locationController.text.trim();
+    final dateOfBirth = dateController.text.trim();
+    final gender = selectedGender;
+
+    if (name.isEmpty || password.isEmpty || phone.isEmpty || location.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields.')),
+      );
+      return;
+    }
+
+    try {
+      // Convert name to pseudo-email (replace spaces to avoid Firebase issues)
+      final email = '${name.replaceAll(' ', '').toLowerCase()}@quickhire.com';
+
+      // Step 1: Create Firebase Auth user
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      // Step 2: Save profile in Firestore
+      await FirebaseFirestore.instance
+          .collection('posters')
+          .doc(credential.user!.uid)
+          .set({
+            'name': name,
+            'email': email, // store pseudo-email for login
+            'gender': gender,
+            'date_of_birth': dateOfBirth,
+            'phone': phone,
+            'location': location,
+            'created_at': FieldValue.serverTimestamp(),
+          });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile created successfully!')),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const PosterNavigation()),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Error creating account')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Something went wrong: $e')));
+    }
+  }
+
   @override
   void dispose() {
     dateController.dispose();
+    nameController.dispose();
+    passwordController.dispose();
+    phoneController.dispose();
+    locationController.dispose();
     super.dispose();
   }
 }

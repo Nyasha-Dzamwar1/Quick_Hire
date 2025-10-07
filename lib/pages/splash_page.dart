@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:quick_hire/navigation/poster_navigation.dart';
 import 'package:quick_hire/navigation/seeker_navigation.dart';
+import 'package:quick_hire/pages/poster_login_page.dart';
+import 'package:quick_hire/pages/seeker_login_page.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -45,9 +47,10 @@ class _SplashPageState extends State<SplashPage> {
                 'I am a',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 20,
+                  fontSize: 30,
                   color: Colors.grey[700],
                   height: 1.5,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
 
@@ -59,7 +62,7 @@ class _SplashPageState extends State<SplashPage> {
                   _buildOptionCard(
                     isSelected: selectedOption == 'job_seeker',
                     icon: Icons.work_outline,
-                    title: 'Find a job',
+                    title: 'Job Seeker',
                     subtitle:
                         'It\'s easy to find your dream\njobs here with us',
                     onTap: () {
@@ -74,7 +77,7 @@ class _SplashPageState extends State<SplashPage> {
                   _buildOptionCard(
                     isSelected: selectedOption == 'job_poster',
                     icon: Icons.people_outline,
-                    title: 'Find an employee',
+                    title: 'Job Poster',
                     subtitle: 'It\'s easy to find your\nemployees here with us',
                     onTap: () {
                       setState(() {
@@ -98,14 +101,14 @@ class _SplashPageState extends State<SplashPage> {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const SeekerNavigation(),
+                                builder: (context) => const SeekerLoginPage(),
                               ),
                             );
                           } else if (selectedOption == 'job_poster') {
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const PosterNavigation(),
+                                builder: (context) => const PosterLoginPage(),
                               ),
                             );
                           }

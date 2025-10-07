@@ -5,13 +5,13 @@ import '../models/job.dart';
 
 class JobDetails extends StatelessWidget {
   final Job job;
+  final String categoryImage;
 
-  const JobDetails({super.key, required this.job});
+  const JobDetails({super.key, required this.job, required this.categoryImage});
 
   @override
   Widget build(BuildContext context) {
-    final repo = context.watch<AppRepository>();
-    final hasApplied = repo.hasApplied(job.id);
+    final repo = context.read<AppRepository>();
 
     return Scaffold(
       appBar: AppBar(title: const Center(child: Text('Details'))),
@@ -26,14 +26,11 @@ class JobDetails extends StatelessWidget {
               children: [
                 // Job image
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 0,
-                    vertical: 0,
-                  ),
+                  width: double.infinity,
                   child: Image.asset(
-                    job.imageUrl.isNotEmpty
-                        ? job.imageUrl
-                        : 'assets/images/placeholder.png',
+                    categoryImage.isNotEmpty
+                        ? categoryImage
+                        : 'assets/images/placeholder.jpg',
                     height: 300,
                     fit: BoxFit.cover,
                   ),
@@ -93,39 +90,47 @@ class JobDetails extends StatelessWidget {
                 const Spacer(),
                 // Apply button
                 Center(
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 25,
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 20),
-                        padding: const EdgeInsets.all(15),
-                        backgroundColor: hasApplied ? Colors.grey : null,
-                      ),
-                      onPressed: hasApplied
-                          ? null
-                          : () async {
-                              final success = await repo.applyToJob(job.id);
-                              if (success) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Application Submitted!"),
-                                  ),
-                                );
-                              } else {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      "Could not apply. Maybe already applied?",
+                  child: FutureBuilder<bool>(
+                    future: repo.hasApplied(job.id),
+                    builder: (context, snapshot) {
+                      final hasApplied = snapshot.data ?? false;
+
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 25,
+                        ),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 20),
+                            padding: const EdgeInsets.all(15),
+                            backgroundColor: hasApplied ? Colors.grey : null,
+                          ),
+
+                          onPressed: hasApplied
+                              ? null
+                              : () async {
+                                  final success = await repo.applyToJob(job.id);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        success
+                                            ? "Application Submitted!"
+                                            : "You have already applied for this job",
+                                      ),
                                     ),
-                                  ),
-                                );
-                              }
-                            },
-                      child: Text(hasApplied ? 'Already Applied' : 'Apply Now'),
-                    ),
+                                  );
+                                  if (success) {
+                                    Navigator.pop(context, true);
+                                  }
+                                },
+
+                          child: Text(
+                            hasApplied ? 'Already Applied' : 'Apply Now',
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
