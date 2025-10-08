@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'package:quick_hire/pages/my_applications_page.dart';
 import 'package:quick_hire/pages/seeker_help_page.dart';
 import 'package:quick_hire/pages/seeker_notifications_page.dart';
 import 'package:quick_hire/pages/splash_page.dart';
+import 'package:quick_hire/repositories/app_repository.dart';
 
 class SeekerProfilePage extends StatefulWidget {
   const SeekerProfilePage({super.key});
@@ -74,17 +76,39 @@ class _SeekerProfilePageState extends State<SeekerProfilePage> {
           ),
         ),
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SeekerNotificationsPage(),
-                ),
+          StreamBuilder<int>(
+            stream: context
+                .read<AppRepository>()
+                .unreadNotificationCountStream(),
+            builder: (context, snapshot) {
+              int unreadCount = snapshot.data ?? 0;
+
+              return Stack(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const SeekerNotificationsPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.notifications),
+                    iconSize: 30,
+                  ),
+                  if (unreadCount > 0)
+                    const Positioned(
+                      right: 8,
+                      top: 8,
+                      child: CircleAvatar(
+                        radius: 5,
+                        backgroundColor: Colors.red,
+                      ),
+                    ),
+                ],
               );
             },
-            icon: const Icon(Icons.notifications, color: Colors.white),
-            iconSize: 30,
           ),
           const SizedBox(width: 8),
         ],
@@ -107,146 +131,170 @@ class _SeekerProfilePageState extends State<SeekerProfilePage> {
                         style: TextStyle(fontSize: 16),
                       ),
                     )
-                  : ListView(
-                      children: [
-                        // Avatar
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              colors: [
-                                Color.fromRGBO(0, 45, 114, 1.0),
-                                Color.fromRGBO(0, 70, 150, 1.0),
-                              ],
+                  : Builder(
+                      builder: (context) {
+                        // Compute full name and initials here BEFORE the widget tree
+                        String fullName = userData?['name'] ?? "Unknown User";
+                        List<String> nameParts = fullName.split(" ");
+                        String initials = "";
+                        if (nameParts.length >= 2) {
+                          initials =
+                              nameParts[0][0] +
+                              nameParts.last[0]; // first and last initials
+                        } else if (nameParts.isNotEmpty) {
+                          initials = nameParts[0][0];
+                        }
+
+                        return ListView(
+                          children: [
+                            // Avatar
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                gradient: LinearGradient(
+                                  colors: [
+                                    Color.fromRGBO(0, 45, 114, 1.0),
+                                    Color.fromARGB(255, 255, 193, 7),
+                                  ],
+                                ),
+                              ),
+                              child: CircleAvatar(
+                                radius: 50,
+                                backgroundColor: const Color.fromRGBO(
+                                  0,
+                                  45,
+                                  114,
+                                  1.0,
+                                ),
+                                child: Text(
+                                  initials.toUpperCase(),
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                          child: CircleAvatar(
-                            radius: 50,
-                            backgroundColor: Colors.grey[200],
-                            child: const Icon(
-                              Icons.person,
-                              size: 50,
-                              color: Colors.grey,
+                            const SizedBox(height: 16),
+
+                            // Name
+                            Center(
+                              child: Text(
+                                userData?['name'] ?? 'Unknown User',
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Name
-                        Center(
-                          child: Text(
-                            userData?['name'] ?? "Unknown User",
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                            const SizedBox(height: 24),
+                            // Profile details
+                            Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  _buildInfoRow(
+                                    Icons.person_outline,
+                                    'Gender',
+                                    userData?['gender'] ?? '-',
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildInfoRow(
+                                    Icons.cake_outlined,
+                                    'Date of Birth',
+                                    userData?['date_of_birth'] ?? '-',
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildInfoRow(
+                                    Icons.badge_outlined,
+                                    'Phone Number',
+                                    userData?['phone'] ?? '-',
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildInfoRow(
+                                    Icons.location_on_outlined,
+                                    'Location',
+                                    userData?['location'] ?? '-',
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 24),
 
-                        // Profile details
-                        Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              _buildInfoRow(
-                                Icons.person_outline,
-                                'Gender',
-                                userData?['gender'] ?? '-',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildInfoRow(
-                                Icons.cake_outlined,
-                                'Date of Birth',
-                                userData?['date_of_birth'] ?? '-',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildInfoRow(
-                                Icons.badge_outlined,
-                                'Phone Number',
-                                userData?['phone'] ?? '-',
-                              ),
-                              const SizedBox(height: 16),
-                              _buildInfoRow(
-                                Icons.location_on_outlined,
-                                'Location',
-                                userData?['location'] ?? '-',
-                              ),
-                            ],
-                          ),
-                        ),
+                            const SizedBox(height: 24),
 
-                        const SizedBox(height: 24),
-
-                        // Menu
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
-                                blurRadius: 10,
-                                offset: const Offset(0, 2),
+                            // Menu
+                            Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.04),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: Column(
-                            children: [
-                              _buildMenuItem(
-                                context,
-                                icon: Icons.description_outlined,
-                                title: 'My Applications',
-                                onTap: () {
-                                  Navigator.push(
+                              child: Column(
+                                children: [
+                                  _buildMenuItem(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          const MyApplicationsPage(),
-                                    ),
-                                  );
-                                },
-                              ),
-                              const Divider(height: 1, indent: 60),
-                              _buildMenuItem(
-                                context,
-                                icon: Icons.help_outline,
-                                title: 'Help',
-                                onTap: () {
-                                  Navigator.push(
+                                    icon: Icons.description_outlined,
+                                    title: 'My Applications',
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const MyApplicationsPage(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const Divider(height: 1, indent: 60),
+                                  _buildMenuItem(
                                     context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const SeekerHelpPage(),
-                                    ),
-                                  );
-                                },
+                                    icon: Icons.help_outline,
+                                    title: 'Help',
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const SeekerHelpPage(),
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                  const Divider(height: 1, indent: 60),
+                                  _buildMenuItem(
+                                    context,
+                                    icon: Icons.logout,
+                                    title: 'Log out',
+                                    onTap: () => _showLogoutDialog(context),
+                                    showArrow: false,
+                                    isDestructive: true,
+                                  ),
+                                ],
                               ),
-                              const Divider(height: 1, indent: 60),
-                              _buildMenuItem(
-                                context,
-                                icon: Icons.logout,
-                                title: 'Log out',
-                                onTap: () => _showLogoutDialog(context),
-                                showArrow: false,
-                                isDestructive: true,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
             ),
     );

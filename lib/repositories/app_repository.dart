@@ -20,13 +20,11 @@ class AppRepository extends ChangeNotifier {
     required String experience,
     required String password,
   }) async {
-    // Create Auth User
     final credential = await _auth.createUserWithEmailAndPassword(
-      email: '$phone@quickhire.com', // placeholder email for simplicity
+      email: '$phone@quickhire.com',
       password: password,
     );
 
-    // Create Firestore Document (auto-creates collection if not exists)
     await _firestore.collection('seekers').doc(credential.user!.uid).set({
       'name': name,
       'date_of_birth': dateOfBirth,
@@ -102,7 +100,7 @@ class AppRepository extends ChangeNotifier {
   }) async {
     if (currentUser == null) return;
 
-    await _firestore.collection('jobs').add({
+    final docRef = await _firestore.collection('jobs').add({
       'title': title,
       'company': company,
       'price': price,
@@ -119,41 +117,35 @@ class AppRepository extends ChangeNotifier {
   }
 
   Stream<List<Job>> jobsStream() {
-    return _firestore
-        .collection('jobs')
-        .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) {
-            final data = doc.data();
-            return Job(
-              id: doc.id,
-              title: data['title'] ?? '',
-              company: data['company'] ?? '',
-              price: data['price'] is int
-                  ? data['price']
-                  : int.tryParse(data['price']?.toString() ?? '0') ?? 0,
-              description: data['description'] ?? '',
-              imageUrl: data['imageUrl'] ?? '',
-              category: data['category'] ?? '',
-              posterEmail: data['posterEmail'] ?? '',
-              posterPhone: data['posterPhone'] ?? '',
-            );
-          }).toList(),
+    return _firestore.collection('jobs').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return Job(
+          id: doc.id,
+          title: data['title'] ?? '',
+          company: data['company'] ?? '',
+          price: data['price'] is int
+              ? data['price']
+              : int.tryParse(data['price']?.toString() ?? '0') ?? 0,
+          description: data['description'] ?? '',
+          imageUrl: data['imageUrl'] ?? '',
+          category: data['category'] ?? '',
+          posterEmail: data['posterEmail'] ?? '',
+          posterPhone: data['posterPhone'] ?? '',
         );
+      }).toList();
+    });
   }
 
   Stream<List<Map<String, dynamic>>> posterJobsStream() {
     if (currentUser == null) return const Stream.empty();
-
     return _firestore
         .collection('jobs')
         .where('posterId', isEqualTo: currentUser!.uid)
         .snapshots()
         .map((snapshot) {
-          // include the document id in each returned map so jobData['id'] exists
           return snapshot.docs.map((doc) {
             final data = doc.data();
-
             return {
               ...data,
               'id': doc.id,
@@ -171,7 +163,6 @@ class AppRepository extends ChangeNotifier {
     try {
       final seekerId = currentUser!.uid;
 
-      // Check if seeker already applied
       final existing = await _firestore
           .collection('applications')
           .where('seekerId', isEqualTo: seekerId)
@@ -180,7 +171,6 @@ class AppRepository extends ChangeNotifier {
 
       if (existing.docs.isNotEmpty) return false;
 
-      // Get job details
       final jobDoc = await _firestore.collection('jobs').doc(jobId).get();
       if (!jobDoc.exists) return false;
 
@@ -188,7 +178,6 @@ class AppRepository extends ChangeNotifier {
       final posterId = jobData['posterId'];
       final jobTitle = jobData['title'] ?? 'Job';
 
-      //  Get seeker details
       final seekerDoc = await _firestore
           .collection('seekers')
           .doc(seekerId)
@@ -197,7 +186,6 @@ class AppRepository extends ChangeNotifier {
           ? (seekerDoc.data()?['name'] ?? 'Someone')
           : 'Someone';
 
-      //  Create application
       await _firestore.collection('applications').add({
         'jobId': jobId,
         'seekerId': seekerId,
@@ -206,7 +194,7 @@ class AppRepository extends ChangeNotifier {
         'appliedAt': FieldValue.serverTimestamp(),
       });
 
-      // Notify Poster (someone applied)
+      // Notify Poster
       await createNotification(
         userId: posterId,
         type: 'new_application',
@@ -214,7 +202,7 @@ class AppRepository extends ChangeNotifier {
         jobTitle: jobTitle,
       );
 
-      //  Notify Seeker (you applied successfully)
+      // Notify Seeker
       await createNotification(
         userId: seekerId,
         type: 'application_success',
@@ -238,8 +226,8 @@ class AppRepository extends ChangeNotifier {
         .collection('applications')
         .where('seekerId', isEqualTo: uid)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map((doc) {
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
             final data = doc.data();
             return Application(
               id: doc.id,
@@ -247,11 +235,10 @@ class AppRepository extends ChangeNotifier {
               seekerId: data['seekerId'],
               status: data['status'] ?? 'pending',
             );
-          }).toList(),
-        );
+          }).toList();
+        });
   }
 
-  // Check if current user has applied to a job
   Future<bool> hasApplied(String jobId) async {
     if (currentUser == null) return false;
 
@@ -264,23 +251,55 @@ class AppRepository extends ChangeNotifier {
     return existing.docs.isNotEmpty;
   }
 
-  // Update the status of an applicant for a job
+  // Updated to send notifications to seekers when accepted/denied
   Future<void> updateApplicationStatus(
     String applicationId,
     String status,
   ) async {
     try {
+      final appDoc = await _firestore
+          .collection('applications')
+          .doc(applicationId)
+          .get();
+      if (!appDoc.exists) return;
+
+      final appData = appDoc.data()!;
+      final seekerId = appData['seekerId'];
+      final jobId = appData['jobId'];
+
       await _firestore.collection('applications').doc(applicationId).update({
         'status': status,
         'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // Fetch job title
+      final jobDoc = await _firestore.collection('jobs').doc(jobId).get();
+      final jobData = jobDoc.data();
+      final jobTitle =
+          jobDoc.exists && jobData != null && jobData['title'] != null
+          ? jobData['title']
+          : 'Job';
+
+      // Send notification to seeker
+      await createNotification(
+        userId: seekerId,
+        type: status == 'accepted'
+            ? 'application_accepted'
+            : status == 'denied'
+            ? 'application_denied'
+            : 'application_updated',
+        jobTitle: jobTitle,
+        posterName: currentUser?.displayName ?? 'Poster',
+        jobId: jobId,
+        status: status,
+      );
+
       notifyListeners();
     } catch (e) {
       if (kDebugMode) print('Error updating application status: $e');
     }
   }
 
-  // Get applicants for a specific job
   Stream<List<Map<String, dynamic>>> getJobApplicants(String jobId) {
     return _firestore
         .collection('applications')
@@ -318,14 +337,11 @@ class AppRepository extends ChangeNotifier {
 
   Future<void> deleteJob(String jobId) async {
     try {
-      await FirebaseFirestore.instance.collection('jobs').doc(jobId).delete();
-
-      // Optionally, also delete all applications for this job
-      final applications = await FirebaseFirestore.instance
+      await _firestore.collection('jobs').doc(jobId).delete();
+      final applications = await _firestore
           .collection('applications')
           .where('jobId', isEqualTo: jobId)
           .get();
-
       for (var doc in applications.docs) {
         await doc.reference.delete();
       }
@@ -337,22 +353,19 @@ class AppRepository extends ChangeNotifier {
 
   Future<void> deleteApplication(String applicationId) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('applications')
-          .doc(applicationId)
-          .delete();
+      await _firestore.collection('applications').doc(applicationId).delete();
     } catch (e) {
       print('Error deleting application: $e');
       rethrow;
     }
   }
 
-  //creating notifications
-
+  // ========== NOTIFICATIONS ==========
   Future<void> createNotification({
     required String userId,
     required String type,
     String? applicantName,
+    String? posterName,
     String? jobTitle,
     String? jobId,
     String? status,
@@ -366,25 +379,25 @@ class AppRepository extends ChangeNotifier {
         'timestamp': FieldValue.serverTimestamp(),
       };
 
-      // Add fields based on notification type
-      // Poster notifications need: applicantName, jobTitle
+      // Poster notifications
       if (type == 'new_application' || type == 'application_withdrawn') {
         notificationData['applicantName'] = applicantName;
         notificationData['jobTitle'] = jobTitle;
         if (jobId != null) notificationData['jobId'] = jobId;
       }
-      // Seeker notifications need: jobTitle, and sometimes status
+      // Seeker notifications
       else if (type == 'application_accepted' ||
           type == 'application_denied' ||
           type == 'application_success' ||
           type == 'job_updated' ||
-          type == 'job_deleted') {
+          type == 'job_deleted' ||
+          type == 'job_posted') {
         notificationData['jobTitle'] = jobTitle;
+        notificationData['posterName'] = posterName;
         if (jobId != null) notificationData['jobId'] = jobId;
         if (status != null) notificationData['status'] = status;
       }
 
-      // Add any additional custom data
       if (additionalData != null) {
         notificationData.addAll(additionalData);
       }
@@ -396,42 +409,32 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
-  // Poster notifications stream - filters for poster-specific notification types
   Stream<List<Map<String, dynamic>>> posterNotificationsStream() {
     if (currentUser == null) return Stream.value([]);
-
     return _firestore
         .collection('notifications')
         .where('userId', isEqualTo: currentUser!.uid)
-        .where('type', whereIn: ['new_application', 'application_withdrawn'])
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
+          final notifications = snapshot.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return data;
           }).toList();
+
+          return notifications.where((notification) {
+            final type = notification['type'] ?? '';
+            return type == 'new_application' || type == 'application_withdrawn';
+          }).toList();
         });
   }
 
-  // Seeker notifications stream - filters for seeker-specific notification types
   Stream<List<Map<String, dynamic>>> seekerNotificationsStream() {
     if (currentUser == null) return Stream.value([]);
-
     return _firestore
         .collection('notifications')
         .where('userId', isEqualTo: currentUser!.uid)
-        .where(
-          'type',
-          whereIn: [
-            'application_accepted',
-            'application_denied',
-            'application_success',
-            'job_updated',
-            'job_deleted',
-          ],
-        )
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -443,7 +446,6 @@ class AppRepository extends ChangeNotifier {
         });
   }
 
-  // Mark notification as read
   Future<void> markNotificationAsRead(String notificationId) async {
     try {
       await _firestore.collection('notifications').doc(notificationId).update({
@@ -455,7 +457,6 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
-  // Mark all notifications as read
   Future<void> markAllNotificationsAsRead() async {
     if (currentUser == null) return;
 
@@ -477,7 +478,6 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
-  // Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
       await _firestore.collection('notifications').doc(notificationId).delete();
@@ -487,10 +487,8 @@ class AppRepository extends ChangeNotifier {
     }
   }
 
-  // Get unread notification count
   Stream<int> unreadNotificationCountStream() {
     if (currentUser == null) return Stream.value(0);
-
     return _firestore
         .collection('notifications')
         .where('userId', isEqualTo: currentUser!.uid)

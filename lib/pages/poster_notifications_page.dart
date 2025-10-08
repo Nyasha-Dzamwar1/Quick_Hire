@@ -13,8 +13,6 @@ class PosterNotificationsPage extends StatelessWidget {
     switch (type) {
       case 'new_application':
         return '$applicantName applied for $jobTitle';
-      case 'application_withdrawn':
-        return '$applicantName withdrew their application for $jobTitle';
       default:
         return 'New notification';
     }
@@ -67,38 +65,6 @@ class PosterNotificationsPage extends StatelessWidget {
     } catch (e) {
       return '';
     }
-  }
-
-  void _showDeleteConfirmation(
-    BuildContext context,
-    AppRepository repo,
-    String notificationId,
-  ) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Delete Notification'),
-          content: const Text(
-            'Are you sure you want to delete this notification?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                repo.deleteNotification(notificationId);
-                Navigator.of(context).pop();
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override

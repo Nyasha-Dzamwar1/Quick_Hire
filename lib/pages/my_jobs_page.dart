@@ -16,17 +16,39 @@ class MyJobsPage extends StatelessWidget {
         toolbarHeight: 130,
         title: Text('My Jobs', style: Theme.of(context).textTheme.titleLarge),
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PosterNotificationsPage(),
-                ),
+          StreamBuilder<int>(
+            stream: context
+                .read<AppRepository>()
+                .unreadNotificationCountStream(),
+            builder: (context, snapshot) {
+              int unreadCount = snapshot.data ?? 0;
+
+              return Stack(
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const PosterNotificationsPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.notifications),
+                    iconSize: 30,
+                  ),
+                  if (unreadCount > 0)
+                    const Positioned(
+                      right: 8,
+                      top: 8,
+                      child: CircleAvatar(
+                        radius: 5,
+                        backgroundColor: Colors.red,
+                      ),
+                    ),
+                ],
               );
             },
-            icon: const Icon(Icons.notifications),
-            iconSize: 30,
           ),
           IconButton(
             onPressed: () {

@@ -6,9 +6,8 @@ import 'package:quick_hire/pages/categories_jobs_page.dart';
 import 'package:quick_hire/pages/seeker_notifications_page.dart';
 import 'package:quick_hire/pages/seeker_profile_page.dart';
 import 'package:quick_hire/repositories/app_repository.dart';
-import 'package:quick_hire/widgets/category_cards.dart';
-import 'package:quick_hire/job_details.dart';
 import '../models/job.dart';
+import '../job_details.dart';
 
 class JobSeekerHomePage extends StatefulWidget {
   const JobSeekerHomePage({super.key});
@@ -17,7 +16,12 @@ class JobSeekerHomePage extends StatefulWidget {
   State<JobSeekerHomePage> createState() => _JobSeekerHomePageState();
 }
 
-class _JobSeekerHomePageState extends State<JobSeekerHomePage> {
+class _JobSeekerHomePageState extends State<JobSeekerHomePage>
+    with AutomaticKeepAliveClientMixin {
+  // ✅ Keeps the page alive when switching tabs
+  @override
+  bool get wantKeepAlive => true;
+
   final Map<String, String> categoryImages = const {
     'Agriculture': 'assets/images/agriculture.jpg',
     'Hospitality': 'assets/images/hospitality.jpg',
@@ -47,17 +51,10 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage> {
           .doc(user.uid)
           .get();
 
-      if (doc.exists) {
-        setState(() {
-          userName = doc.data()?['name'] ?? 'Seeker';
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          userName = 'Seeker';
-          isLoading = false;
-        });
-      }
+      setState(() {
+        userName = doc.data()?['name'] ?? 'Seeker';
+        isLoading = false;
+      });
     } catch (e) {
       debugPrint('Error fetching user name: $e');
       setState(() {
@@ -75,93 +72,63 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.9,
         expand: false,
-        builder: (context, scrollController) => Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(2),
-              ),
+        builder: (context, scrollController) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: GridView.builder(
+            controller: scrollController,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, // 2 items per row
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 1.6, // adjust for card height
             ),
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                'All Categories',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ),
-            Expanded(
-              child: GridView.builder(
-                controller: scrollController,
-                padding: const EdgeInsets.all(16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.2,
-                ),
-                itemCount: categoryImages.length,
-                itemBuilder: (context, index) {
-                  final category = categoryImages.keys.elementAt(index);
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => CategoryJobsPage(
-                            categoryName: category,
-                            categoryImage: categoryImages[category]!,
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        image: DecorationImage(
-                          image: AssetImage(categoryImages[category]!),
-                          fit: BoxFit.cover,
-                          colorFilter: ColorFilter.mode(
-                            Colors.black26,
-                            BlendMode.darken,
-                          ),
-                        ),
-                      ),
-                      child: Align(
-                        alignment: Alignment.bottomLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Text(
-                            category,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              shadows: [
-                                Shadow(
-                                  color: Colors.black45,
-                                  blurRadius: 4,
-                                  offset: Offset(1, 1),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+            itemCount: categoryImages.length,
+            itemBuilder: (context, index) {
+              final entry = categoryImages.entries.elementAt(index);
+              return GestureDetector(
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CategoryJobsPage(
+                        categoryName: entry.key,
+                        categoryImage: entry.value,
                       ),
                     ),
                   );
                 },
-              ),
-            ),
-          ],
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    image: DecorationImage(
+                      image: AssetImage(entry.value),
+                      fit: BoxFit.cover,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.black26,
+                        BlendMode.darken,
+                      ),
+                    ),
+                  ),
+                  child: Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        entry.key,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -169,49 +136,66 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Needed when using AutomaticKeepAliveClientMixin
     final repo = context.watch<AppRepository>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        toolbarHeight: 130,
+        toolbarHeight: 120,
         title: isLoading
             ? const Text("Loading...")
             : Text(
                 'Hello, ${userName ?? "Seeker"} 👋',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1a4d8f),
+                  color: Color(0xFF1a4d8f),
                 ),
               ),
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const SeekerNotificationsPage(),
-                ),
+          StreamBuilder<int>(
+            stream: repo.unreadNotificationCountStream(),
+            builder: (context, snapshot) {
+              bool hasUnread = (snapshot.data ?? 0) > 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications, size: 30),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const SeekerNotificationsPage(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (hasUnread)
+                    const Positioned(
+                      right: 8,
+                      top: 8,
+                      child: CircleAvatar(
+                        radius: 5,
+                        backgroundColor: Colors.red,
+                      ),
+                    ),
+                ],
               );
             },
-            icon: const Icon(Icons.notifications),
-            iconSize: 30,
           ),
           IconButton(
+            icon: const Icon(Icons.person, size: 35),
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const SeekerProfilePage(),
-                ),
+                MaterialPageRoute(builder: (_) => const SeekerProfilePage()),
               );
             },
-            icon: const Icon(Icons.person),
-            iconSize: 40,
           ),
         ],
       ),
+
       body: StreamBuilder<List<Job>>(
         stream: repo.jobsStream(),
         builder: (context, snapshot) {
@@ -224,7 +208,6 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage> {
           }
 
           final jobs = snapshot.data ?? [];
-
           if (jobs.isEmpty) {
             return const Center(
               child: Text(
@@ -235,151 +218,87 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage> {
             );
           }
 
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Categories Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Categories',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  GestureDetector(
-                    onTap: _showAllCategories,
-                    child: const Text(
-                      'See all',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Color(0xFF1a4d8f),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-
-              SizedBox(
-                height: 150,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: categoryImages.length,
-                  itemBuilder: (context, index) {
-                    final category = categoryImages.keys.elementAt(index);
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 12),
-                      child: CategoryCards(
-                        title: category,
-                        image: categoryImages[category]!,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => CategoryJobsPage(
-                                categoryName: category,
-                                categoryImage: categoryImages[category]!,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 30),
-
-              // Job List
-              const Text(
-                'Available Jobs',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 15),
-
-              ListView.builder(
-                itemCount: jobs.length,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemBuilder: (context, index) {
-                  final job = jobs[index];
-                  return Card(
-                    elevation: 2,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    margin: const EdgeInsets.only(bottom: 16),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => JobDetails(
-                              job: job,
-                              categoryImage:
-                                  categoryImages[job.category] ??
-                                  'assets/images/placeholder.jpg',
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Categories section
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Categories',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(16),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    job.title,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF1a4d8f),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'MKW ${job.price.toStringAsFixed(0)}',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1a4d8f),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              job.company,
-                              style: const TextStyle(
+                          GestureDetector(
+                            onTap: _showAllCategories,
+                            child: const Text(
+                              'See all',
+                              style: TextStyle(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                                color: Color(0xFFFFA726),
+                                color: Color(0xFF1a4d8f),
                               ),
                             ),
-                            const SizedBox(height: 12),
-                            Text(
-                              job.description,
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: Colors.black87,
-                                height: 1.4,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 15),
+                      SizedBox(
+                        height: 150,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: categoryImages.length,
+                          itemBuilder: (context, index) {
+                            final category = categoryImages.keys.elementAt(
+                              index,
+                            );
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 12),
+                              child: _CategoryCard(
+                                title: category,
+                                image: categoryImages[category]!,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => CategoryJobsPage(
+                                        categoryName: category,
+                                        categoryImage:
+                                            categoryImages[category]!,
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                            );
+                          },
                         ),
                       ),
-                    ),
-                  );
+                      const SizedBox(height: 25),
+                      const Text(
+                        'Available Jobs',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                    ],
+                  ),
+                ),
+              ),
+              SliverList.builder(
+                itemCount: jobs.length,
+                itemBuilder: (context, index) {
+                  final job = jobs[index];
+                  return _JobCard(job: job, imageMap: categoryImages);
                 },
               ),
             ],
@@ -390,17 +309,16 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage> {
   }
 }
 
-class CategoryCards extends StatelessWidget {
+class _CategoryCard extends StatelessWidget {
   final String title;
   final String image;
   final VoidCallback onTap;
 
-  const CategoryCards({
-    Key? key,
+  const _CategoryCard({
     required this.title,
     required this.image,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -413,7 +331,10 @@ class CategoryCards extends StatelessWidget {
           image: DecorationImage(
             image: AssetImage(image),
             fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(Colors.black26, BlendMode.darken),
+            colorFilter: const ColorFilter.mode(
+              Colors.black26,
+              BlendMode.darken,
+            ),
           ),
         ),
         child: Align(
@@ -426,15 +347,86 @@ class CategoryCards extends StatelessWidget {
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
-                shadows: [
-                  Shadow(
-                    color: Colors.black45,
-                    blurRadius: 4,
-                    offset: Offset(1, 1),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _JobCard extends StatelessWidget {
+  final Job job;
+  final Map<String, String> imageMap;
+
+  const _JobCard({required this.job, required this.imageMap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => JobDetails(
+                job: job,
+                categoryImage:
+                    imageMap[job.category] ?? 'assets/images/placeholder.jpg',
+              ),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      job.title,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1a4d8f),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'MKW ${job.price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1a4d8f),
+                    ),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                job.company,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFFFA726),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                job.description,
+                style: const TextStyle(fontSize: 15, color: Colors.black87),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ),

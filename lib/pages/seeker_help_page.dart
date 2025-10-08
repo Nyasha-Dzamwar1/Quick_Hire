@@ -203,9 +203,7 @@ class SeekerHelpPage extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildTipItem(
-                    '• Make sure your profile information is accurate and up-to-date',
-                  ),
+
                   _buildTipItem(
                     '• Apply to jobs that match your skills and experience',
                   ),
