@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:quick_hire/navigation/poster_navigation.dart';
-import 'package:quick_hire/pages/poster_signin_Page.dart';
+import 'package:quick_hire/pages/poster_signin_page.dart';
 
 class PosterLoginPage extends StatefulWidget {
   const PosterLoginPage({super.key});
@@ -12,45 +12,38 @@ class PosterLoginPage extends StatefulWidget {
 }
 
 class _PosterLoginPageState extends State<PosterLoginPage> {
-  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  // Login function using Firebase Auth (name + password)
-  Future<void> loginPoster(String name, String password) async {
+  /// 🔐 Login poster with Firebase Auth
+  Future<void> loginPoster(String email, String password) async {
     setState(() => _isLoading = true);
 
     try {
-      // Get user by name
-      final query = await FirebaseFirestore.instance
+      // Sign in with Firebase Auth
+      final userCredential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      // ✅ Optional: verify the user exists in the "posters" collection
+      final posterDoc = await FirebaseFirestore.instance
           .collection('posters')
-          .where('name', isEqualTo: name)
-          .limit(1)
+          .doc(userCredential.user!.uid)
           .get();
 
-      if (query.docs.isEmpty) {
-        throw Exception('No user found with that name');
+      if (!posterDoc.exists) {
+        throw FirebaseAuthException(
+          code: 'user-not-poster',
+          message: 'This account is not registered as a poster.',
+        );
       }
-
-      final userData = query.docs.first.data();
-      final email = userData['email'] as String?;
-
-      if (email == null || email.isEmpty) {
-        throw Exception('Email not found for this user');
-      }
-
-      // Sign in with Firebase Auth
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Login successful!')));
 
-      //Navigate to Dashboard
+      // Navigate to main dashboard
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const PosterNavigation()),
@@ -69,9 +62,30 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
     }
   }
 
+  /// 📧 Forgot Password
+  Future<void> resetPassword(String email) async {
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email first')),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent!')),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Failed to send reset email')),
+      );
+    }
+  }
+
   @override
   void dispose() {
-    nameController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -88,7 +102,7 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
             children: [
               const SizedBox(height: 60),
               const Text(
-                'Welcome Back to\nQuickHire',
+                'Welcome Back\nPoster',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 32,
@@ -99,7 +113,7 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Log in to continue',
+                'Log In to continue posting jobs',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -109,9 +123,9 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
               ),
               const SizedBox(height: 50),
 
-              // Name field
+              /// 📧 Email field
               const Text(
-                'Name',
+                'Email Address',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -120,11 +134,11 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
               ),
               const SizedBox(height: 6),
               TextField(
-                controller: nameController,
-                keyboardType: TextInputType.name,
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(fontSize: 15),
                 decoration: InputDecoration(
-                  hintText: 'Enter your name',
+                  hintText: 'Enter your email',
                   hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -145,7 +159,7 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
 
               const SizedBox(height: 14),
 
-              // Password
+              /// 🔒 Password field
               const Text(
                 'Password',
                 style: TextStyle(
@@ -193,28 +207,45 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 8),
 
-              // Sign In Button
+              /// 🔁 Forgot Password link
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => resetPassword(emailController.text.trim()),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              /// 🚪 Login button
               SizedBox(
                 height: 56,
                 child: ElevatedButton(
                   onPressed: _isLoading
                       ? null
                       : () {
-                          final name = nameController.text.trim();
+                          final email = emailController.text.trim();
                           final password = passwordController.text.trim();
 
-                          if (name.isEmpty || password.isEmpty) {
+                          if (email.isEmpty || password.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Please fill in all fields.'),
+                                content: Text('Please fill in all fields'),
                               ),
                             );
                             return;
                           }
-
-                          loginPoster(name, password);
+                          loginPoster(email, password);
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
@@ -227,7 +258,7 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          'Log In',
+                          'Log in',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -238,7 +269,7 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
 
               const SizedBox(height: 20),
 
-              // Sign Up
+              /// 🧾 Sign up redirect
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -248,11 +279,10 @@ class _PosterLoginPageState extends State<PosterLoginPage> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to Sign Up page
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => PosterSigninPage(),
+                          builder: (context) => const PosterSigninPage(),
                         ),
                       );
                     },

@@ -15,18 +15,22 @@ class SeekerSigninPage extends StatefulWidget {
 
 class _SeekerSigninPageState extends State<SeekerSigninPage> {
   String selectedGender = 'Male';
+
   final TextEditingController dateController = TextEditingController();
   final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
   final TextEditingController experienceController = TextEditingController();
+
   bool isLoading = false;
 
   Future<void> _completeSetup() async {
     setState(() => isLoading = true);
 
     final name = nameController.text.trim();
+    final email = emailController.text.trim();
     final password = passwordController.text.trim();
     final phone = phoneController.text.trim();
     final location = locationController.text.trim();
@@ -34,18 +38,20 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
     final dob = dateController.text.trim();
     final gender = selectedGender;
 
-    if (name.isEmpty || password.isEmpty || phone.isEmpty || location.isEmpty) {
+    // Basic validation
+    if (name.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        phone.isEmpty ||
+        location.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
+        const SnackBar(content: Text('Please fill in all required fields')),
       );
       setState(() => isLoading = false);
       return;
     }
 
     try {
-      // Generate pseudo-email from name
-      final email = '${name.replaceAll(' ', '').toLowerCase()}@quickhire.com';
-
       // Step 1: Create Firebase Auth user
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(email: email, password: password);
@@ -56,7 +62,7 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
           .doc(credential.user!.uid)
           .set({
             'name': name,
-            'email': email, // store pseudo-email
+            'email': email,
             'gender': gender,
             'date_of_birth': dob,
             'phone': phone,
@@ -69,6 +75,7 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Profile setup complete!')));
 
+      // Step 3: Navigate to main navigation
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const SeekerNavigation()),
@@ -90,6 +97,7 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
   void dispose() {
     dateController.dispose();
     nameController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     phoneController.dispose();
     locationController.dispose();
@@ -130,26 +138,47 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
               ),
               const SizedBox(height: 30),
 
+              // Full Name
               _buildTextField(controller: nameController, hint: 'Full Name'),
               const SizedBox(height: 14),
+
+              // Email Address
+              _buildTextField(
+                controller: emailController,
+                hint: 'Email Address',
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 14),
+
+              // Password
               _buildTextField(
                 controller: passwordController,
                 hint: 'Password',
                 obscureText: true,
               ),
               const SizedBox(height: 14),
+
+              // Date of Birth
               _buildDateField(),
               const SizedBox(height: 14),
+
+              // Gender
               _buildGenderField(),
               const SizedBox(height: 14),
+
+              // Phone Number
               _buildTextField(
                 controller: phoneController,
                 hint: 'Phone Number',
                 keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 14),
+
+              // Location
               _buildTextField(controller: locationController, hint: 'Location'),
               const SizedBox(height: 14),
+
+              // Experience
               _buildTextField(
                 controller: experienceController,
                 hint: 'Work Experience',
@@ -157,11 +186,12 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
               ),
               const SizedBox(height: 30),
 
+              // Submit button
               SizedBox(
                 height: 56,
                 child: Center(
                   child: ElevatedButton(
-                    onPressed: isLoading ? null : () => _completeSetup(),
+                    onPressed: isLoading ? null : _completeSetup,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
                       foregroundColor: Colors.white,
@@ -186,6 +216,7 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
 
               const SizedBox(height: 20),
 
+              // Redirect to login
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -193,14 +224,12 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
                     'Already have an account? ',
                     style: TextStyle(fontSize: 15, color: Colors.grey[600]),
                   ),
-
                   GestureDetector(
                     onTap: () {
-                      // Navigate to log in page
-                      Navigator.push(
+                      Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SeekerLoginPage(),
+                          builder: (context) => const SeekerLoginPage(),
                         ),
                       );
                     },
@@ -229,6 +258,53 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
     TextInputType? keyboardType,
     bool obscureText = false,
   }) {
+    if (obscureText) {
+      // Local state for password visibility
+      bool isPasswordVisible = false;
+
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return TextField(
+            controller: controller,
+            maxLines: maxLines,
+            keyboardType: keyboardType,
+            obscureText: !isPasswordVisible,
+            style: const TextStyle(fontSize: 15),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+              filled: true,
+              fillColor: Colors.grey[50],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              suffixIcon: IconButton(
+                icon: Icon(
+                  isPasswordVisible ? Icons.visibility : Icons.visibility_off,
+                  color: Colors.grey[600],
+                ),
+                onPressed: () {
+                  setState(() {
+                    isPasswordVisible = !isPasswordVisible;
+                  });
+                },
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    // Regular text field
     return TextField(
       controller: controller,
       maxLines: maxLines,
@@ -256,6 +332,7 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
     );
   }
 
+  // Date picker field
   Widget _buildDateField() {
     return TextField(
       controller: dateController,
@@ -297,6 +374,7 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
     );
   }
 
+  // Gender selection field
   Widget _buildGenderField() {
     return Row(
       children: [

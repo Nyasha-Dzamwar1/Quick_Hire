@@ -11,7 +11,9 @@ class LeadingPage extends StatefulWidget {
 class _LeadingPageState extends State<LeadingPage>
     with TickerProviderStateMixin {
   late AnimationController _controller;
+  late AnimationController _scaleController;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
@@ -28,7 +30,18 @@ class _LeadingPageState extends State<LeadingPage>
       end: 1.0,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
+    // Initialize scale animation for icon
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
+    );
+
     _controller.forward();
+    _scaleController.forward();
 
     // Navigate to home page after 3 seconds
     Future.delayed(const Duration(seconds: 3), () {
@@ -43,6 +56,7 @@ class _LeadingPageState extends State<LeadingPage>
   @override
   void dispose() {
     _controller.dispose();
+    _scaleController.dispose();
     super.dispose();
   }
 
@@ -70,6 +84,31 @@ class _LeadingPageState extends State<LeadingPage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Animated Icon
+              ScaleTransition(
+                scale: _scaleAnimation,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        spreadRadius: 5,
+                      ),
+                    ],
+                    image: DecorationImage(
+                      image: AssetImage('assets/app_icon.png'),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
               const Text(
                 'QuickHire',
                 style: TextStyle(

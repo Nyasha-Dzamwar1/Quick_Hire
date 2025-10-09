@@ -13,6 +13,7 @@ class AppRepository extends ChangeNotifier {
   // ========== JOB SEEKERS ==========
   Future<void> createJobSeekerProfile({
     required String name,
+    required String email,
     required String dateOfBirth,
     required String gender,
     required String phone,
@@ -21,12 +22,13 @@ class AppRepository extends ChangeNotifier {
     required String password,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
-      email: '$phone@quickhire.com',
+      email: email,
       password: password,
     );
 
     await _firestore.collection('seekers').doc(credential.user!.uid).set({
       'name': name,
+      'email': email,
       'date_of_birth': dateOfBirth,
       'gender': gender,
       'phone': phone,
@@ -58,17 +60,19 @@ class AppRepository extends ChangeNotifier {
   Future<void> createJobPosterProfile({
     required String name,
     required String businessName,
+    required String email,
     required String phone,
     required String location,
     required String password,
   }) async {
     final credential = await _auth.createUserWithEmailAndPassword(
-      email: '$phone@quickhire.com',
+      email: email,
       password: password,
     );
 
     await _firestore.collection('job_posters').doc(credential.user!.uid).set({
       'name': name,
+      'email': email,
       'business_name': businessName,
       'phone': phone,
       'location': location,
@@ -202,11 +206,19 @@ class AppRepository extends ChangeNotifier {
         jobTitle: jobTitle,
       );
 
-      // Notify Seeker
+      //Notify Seeker
+      final posterDoc = await _firestore
+          .collection('posters')
+          .doc(posterId)
+          .get();
+      final posterName = posterDoc.exists
+          ? (posterDoc.data()?['name'] ?? 'Employer')
+          : 'Employer';
+
       await createNotification(
         userId: seekerId,
         type: 'application_success',
-        applicantName: seekerName,
+        posterName: posterName,
         jobTitle: jobTitle,
       );
 
@@ -438,10 +450,20 @@ class AppRepository extends ChangeNotifier {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs.map((doc) {
+          final notifications = snapshot.docs.map((doc) {
             final data = doc.data();
             data['id'] = doc.id;
             return data;
+          }).toList();
+
+          return notifications.where((notification) {
+            final type = notification['type'] ?? '';
+            return type == 'application_accepted' ||
+                type == 'application_denied' ||
+                type == 'application_success' ||
+                type == 'job_updated' ||
+                type == 'job_deleted' ||
+                type == 'job_posted';
           }).toList();
         });
   }
@@ -498,8 +520,29 @@ class AppRepository extends ChangeNotifier {
   }
 
   // ========== AUTH ==========
+
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      if (kDebugMode) print('Error sending password reset email: $e');
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     await _auth.signOut();
     notifyListeners();
+  }
+
+  Future<String?> getEmailByName(String name) async {
+    final query = await _firestore
+        .collection('seekers')
+        .where('name', isEqualTo: name)
+        .limit(1)
+        .get();
+
+    if (query.docs.isEmpty) return null;
+    return query.docs.first.data()['email'] as String?;
   }
 }

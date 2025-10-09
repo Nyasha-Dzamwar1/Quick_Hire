@@ -49,7 +49,7 @@ class PosterHelpPage extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           color: Colors.grey[50],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(00)),
         ),
         child: ListView(
           padding: const EdgeInsets.all(24),

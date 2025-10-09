@@ -23,6 +23,29 @@ class _SplashPageState extends State<SplashPage> {
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 40.0),
           child: Column(
             children: [
+              Container(
+                width: 100,
+                height: 100,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                  image: DecorationImage(
+                    image: AssetImage('assets/app_icon.png'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+
+              SizedBox(height: 24),
+
               // Title with styled text
               RichText(
                 text: TextSpan(
@@ -98,14 +121,14 @@ class _SplashPageState extends State<SplashPage> {
                   onPressed: selectedOption != null
                       ? () {
                           if (selectedOption == 'job_seeker') {
-                            Navigator.pushReplacement(
+                            Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const SeekerLoginPage(),
                               ),
                             );
                           } else if (selectedOption == 'job_poster') {
-                            Navigator.pushReplacement(
+                            Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => const PosterLoginPage(),

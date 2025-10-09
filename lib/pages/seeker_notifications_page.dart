@@ -8,15 +8,27 @@ class SeekerNotificationsPage extends StatelessWidget {
   String _getNotificationMessage(Map<String, dynamic> notification) {
     final type = notification['type'] ?? '';
     final jobTitle = notification['jobTitle'] ?? 'a job';
+    final posterName = notification['posterName'] ?? '';
 
     switch (type) {
       case 'application_accepted':
         return '🎉 Your application for "$jobTitle" was accepted!';
       case 'application_denied':
         return '😔 Your application for "$jobTitle" was declined';
+      case 'application_success':
+        return '🎉 Congratulations! Your application for "$jobTitle" was successful!';
+      case 'job_posted':
+        return 'A new job has been posted: "$jobTitle"${posterName.isNotEmpty ? ' by $posterName' : ''}';
+      case 'job_updated':
+        return 'The job "$jobTitle" has been updated${posterName.isNotEmpty ? ' by $posterName' : ''}';
+      case 'job_deleted':
+        return 'The job "$jobTitle" has been deleted${posterName.isNotEmpty ? ' by $posterName' : ''}';
       case 'application_status_changed':
+        final status = notification['status'] ?? 'updated';
+        return 'Your application status for "$jobTitle" has been $status';
       default:
-        return 'New notification';
+        // For truly unknown types (should be rare with stream filter)
+        return 'Unknown notification';
     }
   }
 
@@ -33,6 +45,7 @@ class SeekerNotificationsPage extends StatelessWidget {
       case 'application_denied':
         return Icons.cancel;
       case 'application_status_changed':
+      case 'application_success':
         return Icons.info_outline;
       default:
         return Icons.notifications;
@@ -48,6 +61,7 @@ class SeekerNotificationsPage extends StatelessWidget {
       case 'job_deleted':
         return Colors.grey;
       case 'application_accepted':
+      case 'application_success':
         return const Color(0xFF065f46);
       case 'application_denied':
         return const Color(0xFF991b1b);
@@ -91,6 +105,7 @@ class SeekerNotificationsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 80,
         title: const Text('Notifications', style: TextStyle(fontSize: 20)),
         actions: [
           TextButton.icon(
@@ -145,6 +160,13 @@ class SeekerNotificationsPage extends StatelessWidget {
               final notification = notifications[index];
               final isRead = notification['isRead'] ?? false;
               final type = notification['type'] ?? '';
+
+              // Safety check: Skip rendering if type is invalid (extra layer of defense)
+              if (type.isEmpty ||
+                  type == 'new_application' ||
+                  type == 'application_withdrawn') {
+                return const SizedBox.shrink(); // Hide invalid tiles
+              }
 
               return Dismissible(
                 key: Key(notification['id'] ?? index.toString()),

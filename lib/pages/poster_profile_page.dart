@@ -21,6 +21,10 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
 
   Map<String, dynamic>? userData;
   bool isLoading = true;
+  bool isSaving = false;
+
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController locationController = TextEditingController();
 
   @override
   void initState() {
@@ -36,18 +40,56 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
       final doc = await _firestore.collection('posters').doc(user.uid).get();
 
       if (doc.exists) {
-        setState(() {
-          userData = doc.data();
-          isLoading = false;
-        });
-      } else {
-        setState(() {
-          isLoading = false;
-        });
+        userData = doc.data();
+        phoneController.text = userData?['phone'] ?? '';
+        locationController.text = userData?['location'] ?? '';
       }
     } catch (e) {
       debugPrint('Error fetching user data: $e');
+    } finally {
       setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => isSaving = true);
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return;
+
+      await _firestore.collection('posters').doc(user.uid).update({
+        'phone': phoneController.text.trim(),
+        'location': locationController.text.trim(),
+      });
+
+      setState(() {
+        userData?['phone'] = phoneController.text.trim();
+        userData?['location'] = locationController.text.trim();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Profile updated successfully'),
+          backgroundColor: Colors.green[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating profile: $e'),
+          backgroundColor: Colors.red[600],
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+    } finally {
+      setState(() => isSaving = false);
     }
   }
 
@@ -62,19 +104,144 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
   }
 
   @override
+  void dispose() {
+    phoneController.dispose();
+    locationController.dispose();
+    super.dispose();
+  }
+
+  void _showEditProfileDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Edit Profile',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Color.fromRGBO(0, 45, 114, 1.0),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _buildTextField(
+                  phoneController,
+                  'Phone Number',
+                  Icons.phone_outlined,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  locationController,
+                  'Location',
+                  Icons.location_on_outlined,
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                      ),
+                      child: Text(
+                        'Cancel',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton(
+                      onPressed: _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 32,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Save',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon,
+  ) {
+    return TextField(
+      controller: controller,
+      style: const TextStyle(fontSize: 16),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(fontSize: 16),
+        prefixIcon: Icon(icon, color: const Color.fromRGBO(0, 45, 114, 0.7)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey[300]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(
+            color: Color.fromRGBO(0, 45, 114, 1.0),
+            width: 2,
+          ),
+        ),
+        filled: true,
+        fillColor: Colors.grey[50],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
         toolbarHeight: 100,
+        backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+        elevation: 0,
         title: const Text(
           'My Profile',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.w600,
+            fontSize: 25,
+            fontWeight: FontWeight.w700,
           ),
         ),
         actions: [
@@ -84,7 +251,6 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
                 .unreadNotificationCountStream(),
             builder: (context, snapshot) {
               int unreadCount = snapshot.data ?? 0;
-
               return Stack(
                 children: [
                   IconButton(
@@ -92,20 +258,38 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const PosterNotificationsPage(),
+                          builder: (_) => const PosterNotificationsPage(),
                         ),
                       );
                     },
-                    icon: const Icon(Icons.notifications),
-                    iconSize: 30,
+                    icon: const Icon(Icons.notifications_outlined),
+                    iconSize: 26,
+                    color: Colors.white,
                   ),
                   if (unreadCount > 0)
-                    const Positioned(
-                      right: 8,
-                      top: 8,
-                      child: CircleAvatar(
-                        radius: 5,
-                        backgroundColor: Colors.red,
+                    Positioned(
+                      right: 10,
+                      top: 10,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.red[600],
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
                     ),
                 ],
@@ -116,188 +300,232 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
         ],
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(24, 32, 24, 20),
+          ? const Center(
+              child: CircularProgressIndicator(
+                color: Color.fromRGBO(0, 45, 114, 1.0),
+              ),
+            )
+          : userData == null
+          ? const Center(
+              child: Text(
+                'No profile data found.',
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 50, bottom: 100),
+              child: _buildProfileContent(),
+            ),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+        onPressed: _showEditProfileDialog,
+        elevation: 4,
+        icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.white),
+        label: const Text(
+          'Edit Profile',
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileContent() {
+    String fullName = userData?['name'] ?? "Unknown User";
+    List<String> nameParts = fullName.split(" ");
+    String initials = "";
+    if (nameParts.length >= 2) {
+      initials = nameParts[0][0] + nameParts.last[0];
+    } else if (nameParts.isNotEmpty) {
+      initials = nameParts[0][0];
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: [
+          Transform.translate(
+            offset: const Offset(0, -20),
+            child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(30),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Color.fromRGBO(0, 45, 114, 1.0),
+                      Color.fromARGB(255, 255, 193, 7),
+                    ],
+                  ),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                  ),
+                  padding: const EdgeInsets.all(3),
+                  child: CircleAvatar(
+                    radius: 55,
+                    backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+                    child: Text(
+                      initials.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 40,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              child: userData == null
-                  ? const Center(
-                      child: Text(
-                        'No profile data found.',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    )
-                  : Builder(
-                      builder: (context) {
-                        // Compute full name and initials here BEFORE the widget tree
-                        String fullName = userData?['name'] ?? "Unknown User";
-                        List<String> nameParts = fullName.split(" ");
-                        String initials = "";
-                        if (nameParts.length >= 2) {
-                          initials =
-                              nameParts[0][0] +
-                              nameParts.last[0]; // first and last initials
-                        } else if (nameParts.isNotEmpty) {
-                          initials = nameParts[0][0];
-                        }
-
-                        return ListView(
-                          children: [
-                            // Avatar
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [
-                                    Color.fromRGBO(0, 45, 114, 1.0),
-                                    Color.fromARGB(255, 255, 193, 7),
-                                  ],
-                                ),
-                              ),
-                              child: CircleAvatar(
-                                radius: 50,
-                                backgroundColor: const Color.fromRGBO(
-                                  0,
-                                  45,
-                                  114,
-                                  1.0,
-                                ),
-                                child: Text(
-                                  initials.toUpperCase(),
-                                  style: const TextStyle(
-                                    fontSize: 36,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Name
-                            Center(
-                              child: Text(
-                                userData?['name'] ?? 'Unknown User',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-
-                            // Profile Details
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  _buildInfoRow(
-                                    Icons.person_outline,
-                                    'Gender',
-                                    userData?['gender'] ?? '-',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildInfoRow(
-                                    Icons.cake_outlined,
-                                    'Date of Birth',
-                                    userData?['date_of_birth'] ?? '-',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildInfoRow(
-                                    Icons.phone_outlined,
-                                    'Phone',
-                                    userData?['phone'] ?? '-',
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _buildInfoRow(
-                                    Icons.location_on_outlined,
-                                    'Location',
-                                    userData?['location'] ?? '-',
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            // Menu
-                            Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                children: [
-                                  _buildMenuItem(
-                                    context,
-                                    icon: Icons.description_outlined,
-                                    title: 'My Jobs',
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => const MyJobsPage(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Divider(height: 1, indent: 60),
-                                  _buildMenuItem(
-                                    context,
-                                    icon: Icons.help_outline,
-                                    title: 'Help',
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              const PosterHelpPage(),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  Divider(height: 1, indent: 60),
-                                  _buildMenuItem(
-                                    context,
-                                    icon: Icons.logout,
-                                    title: 'Log out',
-                                    onTap: () => _showLogoutDialog(context),
-                                    showArrow: false,
-                                    isDestructive: true,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
             ),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -10),
+            child: Column(
+              children: [
+                Text(
+                  userData?['name'] ?? 'Unknown User',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                    letterSpacing: 0.5,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _auth.currentUser?.email ?? '',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Personal Information',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color.fromRGBO(0, 45, 114, 1.0),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInfoRow(
+                        Icons.person_outline,
+                        'Gender',
+                        userData?['gender'] ?? '-',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInfoRow(
+                        Icons.cake_outlined,
+                        'Date of Birth',
+                        userData?['date_of_birth'] ?? '-',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInfoRow(
+                        Icons.phone_outlined,
+                        'Phone',
+                        userData?['phone'] ?? '-',
+                      ),
+                      const SizedBox(height: 16),
+                      _buildInfoRow(
+                        Icons.location_on_outlined,
+                        'Location',
+                        userData?['location'] ?? '-',
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.description_outlined,
+                        title: 'My Jobs',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MyJobsPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(height: 1, color: Colors.grey[200], indent: 64),
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.help_outline,
+                        title: 'Help & Support',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PosterHelpPage(),
+                            ),
+                          );
+                        },
+                      ),
+                      Divider(height: 1, color: Colors.grey[200], indent: 64),
+                      _buildMenuItem(
+                        context,
+                        icon: Icons.logout,
+                        title: 'Log Out',
+                        onTap: () => _showLogoutDialog(context),
+                        showArrow: false,
+                        isDestructive: true,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -305,14 +533,14 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color.fromRGBO(0, 45, 114, 0.08),
-            borderRadius: BorderRadius.circular(8),
+            color: const Color.fromRGBO(0, 45, 114, 0.06),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
             icon,
-            size: 20,
+            size: 22,
             color: const Color.fromRGBO(0, 45, 114, 1.0),
           ),
         ),
@@ -324,18 +552,19 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 13,
                   color: Colors.grey[600],
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.3,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 value,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 16,
                   color: Colors.black87,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -355,22 +584,22 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 16.0),
+        padding: const EdgeInsets.symmetric(vertical: 18.0, horizontal: 20.0),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: isDestructive
                     ? Colors.red.withOpacity(0.08)
-                    : const Color.fromRGBO(0, 45, 114, 0.08),
-                borderRadius: BorderRadius.circular(8),
+                    : const Color.fromRGBO(0, 45, 114, 0.06),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
-                size: 20,
+                size: 22,
                 color: isDestructive
                     ? Colors.red[700]
                     : const Color.fromRGBO(0, 45, 114, 1.0),
@@ -382,13 +611,17 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
                 title,
                 style: TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                   color: isDestructive ? Colors.red[700] : Colors.black87,
                 ),
               ),
             ),
             if (showArrow)
-              Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.grey[400],
+                size: 26,
+              ),
           ],
         ),
       ),
@@ -399,28 +632,87 @@ class _PosterProfilePageState extends State<PosterProfilePage> {
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(24),
           ),
-          title: const Text(
-            'Log Out',
-            style: TextStyle(fontWeight: FontWeight.bold),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.logout, color: Colors.red[700], size: 32),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Log Out',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Are you sure you want to log out?',
+                  style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: BorderSide(color: Colors.grey[300]!),
+                        ),
+                        child: Text(
+                          'Cancel',
+                          style: TextStyle(
+                            color: Colors.grey[700],
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          _logout(context);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red[600],
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: const Text(
+                          'Log Out',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          content: const Text('Are you sure you want to log out?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text('Cancel', style: TextStyle(color: Colors.grey[600])),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _logout(context);
-              },
-              child: Text('Log Out', style: TextStyle(color: Colors.red[700])),
-            ),
-          ],
         );
       },
     );

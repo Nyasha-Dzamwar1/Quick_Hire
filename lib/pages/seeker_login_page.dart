@@ -12,41 +12,16 @@ class SeekerLoginPage extends StatefulWidget {
 }
 
 class _SeekerLoginPageState extends State<SeekerLoginPage> {
-  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
 
-  // Login function using Firebase Auth (name + password)
-  Future<void> loginSeeker(String name, String password) async {
+  /// 🔐 Login seeker with Firebase Auth
+  Future<void> loginSeeker(String email, String password) async {
     setState(() => _isLoading = true);
 
-    final queryAll = await FirebaseFirestore.instance
-        .collection('seekers')
-        .get();
-    for (var doc in queryAll.docs) {
-      print(doc.data()['name']);
-    }
-
     try {
-      // Get user by name
-      final query = await FirebaseFirestore.instance
-          .collection('seekers')
-          .where('name', isEqualTo: name)
-          .limit(1)
-          .get();
-
-      if (query.docs.isEmpty) {
-        throw Exception('No user found with that name');
-      }
-
-      final userData = query.docs.first.data();
-      final email = userData['email'] as String?;
-
-      if (email == null || email.isEmpty) {
-        throw Exception('Email not found for this user');
-      }
-
       // Sign in with Firebase Auth
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
@@ -57,9 +32,8 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Login successful!')));
 
-      // Navigate to Dashboard
-      Navigator.pushAndRemoveUntil(
-        context,
+      // Navigate to main dashboard
+      Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const SeekerNavigation()),
         (route) => false,
       );
@@ -76,9 +50,30 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
     }
   }
 
+  /// 📧 Forgot Password
+  Future<void> resetPassword(String email) async {
+    if (email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter your email first')),
+      );
+      return;
+    }
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Password reset email sent!')),
+      );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message ?? 'Failed to send reset email')),
+      );
+    }
+  }
+
   @override
   void dispose() {
-    nameController.dispose();
+    emailController.dispose();
     passwordController.dispose();
     super.dispose();
   }
@@ -116,9 +111,9 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
               ),
               const SizedBox(height: 50),
 
-              // Email/Phone
+              /// 📧 Email field
               const Text(
-                'Name',
+                'Email Address',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
@@ -127,10 +122,11 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
               ),
               const SizedBox(height: 6),
               TextField(
-                controller: nameController,
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(fontSize: 15),
                 decoration: InputDecoration(
-                  hintText: 'Enter your name',
+                  hintText: 'Enter your email',
                   hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
                   filled: true,
                   fillColor: Colors.grey[50],
@@ -151,7 +147,7 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
 
               const SizedBox(height: 14),
 
-              // Password
+              /// 🔒 Password field
               const Text(
                 'Password',
                 style: TextStyle(
@@ -199,19 +195,37 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 8),
 
-              // Sign In Button
+              /// 🔁 Forgot Password link
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () => resetPassword(emailController.text.trim()),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
+                    padding: EdgeInsets.zero,
+                  ),
+                  child: const Text(
+                    'Forgot Password?',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              /// 🚪 Login button
               SizedBox(
                 height: 56,
                 child: ElevatedButton(
                   onPressed: _isLoading
                       ? null
                       : () {
-                          final name = nameController.text.trim();
+                          final email = emailController.text.trim();
                           final password = passwordController.text.trim();
 
-                          if (name.isEmpty || password.isEmpty) {
+                          if (email.isEmpty || password.isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
                                 content: Text('Please fill in all fields'),
@@ -219,7 +233,7 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
                             );
                             return;
                           }
-                          loginSeeker(name, password);
+                          loginSeeker(email, password);
                         },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color.fromRGBO(0, 45, 114, 1.0),
@@ -229,16 +243,21 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'Log in',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          'Log in',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
 
               const SizedBox(height: 20),
 
-              // Don't have an account
+              /// 🧾 Sign up redirect
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -248,11 +267,10 @@ class _SeekerLoginPageState extends State<SeekerLoginPage> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to sign up page
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SeekerSigninPage(),
+                          builder: (context) => const SeekerSigninPage(),
                         ),
                       );
                     },
