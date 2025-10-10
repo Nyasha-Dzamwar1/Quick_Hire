@@ -23,10 +23,11 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
   final TextEditingController locationController = TextEditingController();
   bool isLoading = false;
 
+  bool _isPasswordValid = false;
+  bool _obscurePassword = true;
+
   @override
   Widget build(BuildContext context) {
-    bool _isPasswordValid = false;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -91,18 +92,9 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
               const SizedBox(height: 14),
 
               // Password
-              const Text(
-                'Password',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
               TextField(
                 controller: passwordController,
-                obscureText: true,
+                obscureText: _obscurePassword, // use the state variable
                 style: const TextStyle(fontSize: 15),
                 decoration: InputDecoration(
                   hintText: 'Password',
@@ -121,22 +113,26 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                     horizontal: 12,
                     vertical: 12,
                   ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword =
+                            !_obscurePassword; // toggle visibility
+                      });
+                    },
+                  ),
                 ),
                 onChanged: (value) {
                   setState(() {
                     _isPasswordValid = value.trim().length >= 6;
                   });
                 },
-              ),
-              const SizedBox(height: 4),
-              Text(
-                _isPasswordValid
-                    ? '✅ Password length is good'
-                    : '⚠️ Password must be at least 6 characters long',
-                style: TextStyle(
-                  color: _isPasswordValid ? Colors.green : Colors.red,
-                  fontSize: 12,
-                ),
               ),
 
               const SizedBox(height: 14),

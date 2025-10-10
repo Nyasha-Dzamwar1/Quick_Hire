@@ -105,10 +105,11 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
     super.dispose();
   }
 
+  bool _isPasswordValid = false;
+  bool _obscurePassword = true;
+
   @override
   Widget build(BuildContext context) {
-    bool _isPasswordValid = false;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -152,19 +153,9 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
               ),
               const SizedBox(height: 14),
 
-              // Password
-              const Text(
-                'Password',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color.fromRGBO(0, 45, 114, 1.0),
-                ),
-              ),
-              const SizedBox(height: 6),
               TextField(
                 controller: passwordController,
-                obscureText: true,
+                obscureText: _obscurePassword, // <-- important
                 style: const TextStyle(fontSize: 15),
                 decoration: InputDecoration(
                   hintText: 'Password',
@@ -183,6 +174,20 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
                     horizontal: 12,
                     vertical: 12,
                   ),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword =
+                            !_obscurePassword; // <-- toggles visibility
+                      });
+                    },
+                  ),
                 ),
                 onChanged: (value) {
                   setState(() {
@@ -200,6 +205,7 @@ class _SeekerSigninPageState extends State<SeekerSigninPage> {
                   fontSize: 12,
                 ),
               ),
+
               const SizedBox(height: 14),
 
               // Date of Birth
