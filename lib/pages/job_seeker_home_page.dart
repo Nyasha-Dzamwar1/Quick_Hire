@@ -22,6 +22,8 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage>
   @override
   bool get wantKeepAlive => true;
 
+  // Map of job categories to their representative images
+
   final Map<String, String> categoryImages = const {
     'Agriculture & Farming': 'assets/images/agriculture.jpg',
     'Hospitality & Tourism': 'assets/images/hospitality.jpg',
@@ -42,6 +44,9 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage>
   void initState() {
     super.initState();
     _loadUserName();
+    // for (var path in categoryImages.values) {
+    //   precacheImage(AssetImage(path), context);
+    // }
   }
 
   Future<void> _loadUserName() async {
@@ -81,7 +86,7 @@ class _JobSeekerHomePageState extends State<JobSeekerHomePage>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const _AllCategoriesSheet(categoryImages: {}),
+      builder: (context) => _AllCategoriesSheet(categoryImages: categoryImages),
     );
   }
 
@@ -415,7 +420,7 @@ class _CategoryCard extends StatelessWidget {
             ),
           ],
           image: DecorationImage(
-            image: AssetImage(image),
+            image: ResizeImage(AssetImage(image), width: 400, height: 400),
             fit: BoxFit.cover,
             colorFilter: const ColorFilter.mode(
               Colors.black38,
@@ -758,7 +763,11 @@ class _CategoryTile extends StatelessWidget {
               placeholder: const AssetImage(
                 'assets/images/placeholder.jpg',
               ), // your placeholder image
-              image: AssetImage(imagePath),
+              image: ResizeImage(
+                AssetImage(imagePath),
+                width: 400,
+                height: 400,
+              ),
               fit: BoxFit.cover,
               fadeInDuration: const Duration(milliseconds: 300),
             ),

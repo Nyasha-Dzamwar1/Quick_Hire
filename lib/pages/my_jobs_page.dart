@@ -94,65 +94,62 @@ class MyJobsPage extends StatelessWidget {
           const SizedBox(width: 8),
         ],
       ),
+
+      // ✅ Use ListView instead of Column for scrollable body
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: appRepo.posterJobsStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return SizedBox(
-              height: MediaQuery.of(context).size.height - 150,
-              child: const Center(
-                child: CircularProgressIndicator(color: Color(0xFF002D72)),
-              ),
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFF002D72)),
             );
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return SizedBox(
-              height: MediaQuery.of(context).size.height - 150,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.work_outline,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(height: 20),
-                    Text(
-                      'No jobs posted yet',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.grey[700],
-                      ),
+                    child: Icon(
+                      Icons.work_outline,
+                      size: 64,
+                      color: Colors.grey[400],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Start by posting your first job',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'No jobs posted yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Start by posting your first job',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                  ),
+                ],
               ),
             );
           }
 
           final jobs = snapshot.data!;
-          return Padding(
+
+          return ListView.builder(
             padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(left: 4, bottom: 16),
+            itemCount: jobs.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16, left: 4),
                   child: Text(
                     '${jobs.length} ${jobs.length == 1 ? 'Job' : 'Jobs'} Posted',
                     style: TextStyle(
@@ -161,10 +158,12 @@ class MyJobsPage extends StatelessWidget {
                       color: Colors.grey[700],
                     ),
                   ),
-                ),
-                ...jobs.map((job) => JobCard(jobData: job)).toList(),
-              ],
-            ),
+                );
+              }
+
+              final job = jobs[index - 1];
+              return JobCard(jobData: job);
+            },
           );
         },
       ),
@@ -350,6 +349,7 @@ class JobCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Job Header
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -408,6 +408,8 @@ class JobCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
+
+            // Description
             Text(
               jobData['description'] ?? 'No description',
               style: TextStyle(
@@ -419,6 +421,8 @@ class JobCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 16),
+
+            // Price
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -440,7 +444,7 @@ class JobCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    'K ${formattedPrice}',
+                    'K $formattedPrice',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -452,13 +456,14 @@ class JobCard extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
+            // Applicants Section
             StreamBuilder<List<Map<String, dynamic>>>(
               stream: appRepo.getJobApplicants(jobData['id'] ?? ''),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
+                  return const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
                       child: CircularProgressIndicator(
                         color: Color(0xFF002D72),
                         strokeWidth: 3,
@@ -466,6 +471,7 @@ class JobCard extends StatelessWidget {
                     ),
                   );
                 }
+
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return Container(
                     padding: const EdgeInsets.all(16),
@@ -534,6 +540,7 @@ class JobCard extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Applicant Header
                             Row(
                               children: [
                                 Container(
@@ -615,6 +622,8 @@ class JobCard extends StatelessWidget {
                                 ),
                               ],
                             ),
+
+                            // Experience
                             if (applicant['experience'] != null &&
                                 applicant['experience']
                                     .toString()
@@ -660,6 +669,8 @@ class JobCard extends StatelessWidget {
                                 ),
                               ),
                             ],
+
+                            // Accept/Deny Buttons
                             if (isPending) ...[
                               const SizedBox(height: 12),
                               Row(

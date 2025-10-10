@@ -25,6 +25,8 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool _isPasswordValid = false;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -98,10 +100,43 @@ class _PosterSigninPageState extends State<PosterSigninPage> {
                 ),
               ),
               const SizedBox(height: 6),
-              _buildTextField(
-                hint: 'Password',
+              TextField(
                 controller: passwordController,
                 obscureText: true,
+                style: const TextStyle(fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: 'Password',
+                  hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+                  filled: true,
+                  fillColor: Colors.grey[50],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(6),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 12,
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _isPasswordValid = value.trim().length >= 6;
+                  });
+                },
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _isPasswordValid
+                    ? '✅ Password length is good'
+                    : '⚠️ Password must be at least 6 characters long',
+                style: TextStyle(
+                  color: _isPasswordValid ? Colors.green : Colors.red,
+                  fontSize: 12,
+                ),
               ),
 
               const SizedBox(height: 14),

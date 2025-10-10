@@ -382,15 +382,17 @@ class ApplicationCard extends StatelessWidget {
     String jobTitle,
   ) async {
     try {
-      final Uri emailUri = Uri(
-        scheme: 'mailto',
-        path: email,
-        queryParameters: {
-          'subject': 'Regarding your job posting: $jobTitle',
-          'body':
-              'Hello,\n\nI recently applied for your "$jobTitle" job on QuickHire. I\'d like to follow up and discuss more about the opportunity.\n\nThank you,\n[Your Name]',
-        },
+      final subject = Uri.encodeComponent(
+        'Regarding your job posting: $jobTitle',
       );
+      final body = Uri.encodeComponent(
+        'Hello,\n\n'
+        'I recently applied for your "$jobTitle" job on QuickHire. '
+        'I\'d like to follow up and discuss more about the opportunity.\n\n'
+        'Thank you,\n[Your Name]',
+      );
+
+      final emailUri = Uri.parse('mailto:$email?subject=$subject&body=$body');
 
       if (await canLaunchUrl(emailUri)) {
         await launchUrl(emailUri);
@@ -422,19 +424,26 @@ class ApplicationCard extends StatelessWidget {
     String jobTitle,
   ) async {
     try {
+      //Clean the number: remove spaces, brackets, dashes, etc.
       String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
 
+      // If the number starts with +, assume it’s already in international format.
       if (!cleanPhone.startsWith('+')) {
+        // Remove leading zeros before prefixing country code
+        cleanPhone = cleanPhone.replaceFirst(RegExp(r'^0+'), '');
         cleanPhone = '+265$cleanPhone';
       }
 
+      // Prepare your message
       final message =
           "Hello! I'm following up regarding your '$jobTitle' job posting on QuickHire. Is it still available?";
 
+      //Create the WhatsApp link
       final Uri whatsappUri = Uri.parse(
-        'https://wa.me/$cleanPhone?text=${Uri.encodeComponent(message)}',
+        'https://wa.me/${cleanPhone.replaceAll('+', '')}?text=${Uri.encodeComponent(message)}',
       );
 
+      //Launch WhatsApp
       if (await canLaunchUrl(whatsappUri)) {
         await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
       } else {
@@ -461,12 +470,22 @@ class ApplicationCard extends StatelessWidget {
 
   Future<void> _launchPhone(BuildContext context, String phone) async {
     try {
+      // Remove spaces, dashes, etc.
       String cleanPhone = phone.replaceAll(RegExp(r'[^\d+]'), '');
 
-      final Uri phoneUri = Uri(scheme: 'tel', path: cleanPhone);
+      // Handle Malawi local numbers like 0999418157
+      if (!cleanPhone.startsWith('+')) {
+        cleanPhone = cleanPhone.replaceFirst(RegExp(r'^0+'), '');
+        cleanPhone = '+265$cleanPhone';
+      }
+
+      // Encode the phone number properly
+      final encodedPhone = Uri.encodeComponent(cleanPhone);
+
+      final Uri phoneUri = Uri.parse('tel:$encodedPhone');
 
       if (await canLaunchUrl(phoneUri)) {
-        await launchUrl(phoneUri);
+        await launchUrl(phoneUri, mode: LaunchMode.externalApplication);
       } else {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
