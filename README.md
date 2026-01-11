@@ -1,16 +1,24 @@
-# quick_hire
+# QuickHire 🚀
 
-A new Flutter project.
+QuickHire is a mobile application built with Flutter that connects job seekers with job posters.  
+The app focuses on short-term, part-time, and internship opportunities, especially for students and individuals in the informal sector.
 
-## Getting Started
+## 🚧 Project Status
+Work in progress – core features are still being implemented.
 
-This project is a starting point for a Flutter application.
+## ✨ Features
+- User registration and login
+- Job posting functionality
+- Firebase authentication
 
-A few resources to get you started if this is your first Flutter project:
+## 🛠 Technologies Used
+- Flutter
+- Dart
+- Firebase Authentication
+- Git & GitHub
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 🔮 Future Improvements
+- Push notifications for job alerts
+- In-app messaging between users
+- Improved job recommendation system
+- UI/UX enhancements
